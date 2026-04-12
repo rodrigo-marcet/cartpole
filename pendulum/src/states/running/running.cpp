@@ -5,12 +5,12 @@
 
 #include "../../utils/as5600.h"
 
-SequenceState running_sequence(){
+SequenceState running_sequence() {
 	double rads = as5600_read_rads();
 	double c = cos(rads);
 
 	Serial.print(get_as5600_offset());
-	Serial.print("         " );
+	Serial.print("         ");
 	Serial.print(c, 6);
 	Serial.print("\n");
 

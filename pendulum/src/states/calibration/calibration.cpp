@@ -5,32 +5,33 @@
 
 #include "as5600_state.h"
 
-SequenceState calibration_sequence(){
+SequenceState calibration_sequence() {
 	static CalibrationState current_state = CalibrationState::AS5600;
 
-    static unsigned long last_sample_time = 0;
+	static unsigned long last_sample_time = 0;
 	unsigned long t = micros();
 	unsigned long dt = t - last_sample_time;
 
-	switch (current_state){
-		case CalibrationState::AS5600:
-			if(dt < 1000) break;
+	switch (current_state) {
+	case CalibrationState::AS5600:
+		if (dt < 1000)
+			break;
 
-			last_sample_time = t;
+		last_sample_time = t;
 
-			if( as5600_calibration() ){
-				Serial.print("--- AS5600 calibration done.\n");
-				current_state = CalibrationState::Done;
-			}
+		if (as5600_calibration()) {
+			Serial.print("--- AS5600 calibration done.\n");
+			current_state = CalibrationState::Done;
+		}
 		break;
 
-		case CalibrationState::Done:
-			return SequenceState::Done;
+	case CalibrationState::Done:
+		return SequenceState::Done;
 		break;
-	
-		default:
-			Serial.print("Calibration sequence got an unknown state.");
-			return SequenceState::Error;
+
+	default:
+		Serial.print("Calibration sequence got an unknown state.");
+		return SequenceState::Error;
 		break;
 	}
 

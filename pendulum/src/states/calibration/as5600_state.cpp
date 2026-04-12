@@ -5,7 +5,7 @@
 
 #include "../../utils/as5600.h"
 
-bool as5600_calibration(){
+bool as5600_calibration() {
 	static double rads = 0;
 	static double rads_p = 0;
 	static double avg_position = 0;
@@ -22,7 +22,8 @@ bool as5600_calibration(){
 	unsigned long dt = now - last;
 	last = now;
 
-	if(dt == 0) return false;
+	if (dt == 0)
+		return false;
 
 	int raw_angle = as5600_read_raw();
 	rads_p = rads;
@@ -31,24 +32,22 @@ bool as5600_calibration(){
 	c = cos(rads);
 	s_p = s;
 	s = sin(rads);
-	
+
 	double dts = dt / 1000000.0;
-	
+
 	double w = ((s - s_p) * c - (c - c_p) * s) / dts;
-	
+
 	double alpha = 0.5;
 	w_filtered = alpha * w + (1 - alpha) * w_filtered;
 
-	if (now - stable_since >= 5000000 && abs(w_filtered) < epsilon){
+	if (now - stable_since >= 5000000 && abs(w_filtered) < epsilon) {
 		set_as5600_offset(int(avg_position));
 		return true;
-	}
-	else if (abs(w_filtered) >= epsilon) {
+	} else if (abs(w_filtered) >= epsilon) {
 		stable_since = now;
 		n = 0;
 		avg_position = 0;
-	}
-	else {
+	} else {
 		n++;
 		avg_position = avg_position + (raw_angle - avg_position) / n;
 	}
