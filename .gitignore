@@ -1,0 +1,45 @@
+# Arduino build artifacts
+build/
+*.elf
+*.bin
+*.hex
+*.map
+*.eep
+*.lst
+
+# Arduino IDE
+*.ino.globals.h
+.arduino15/
+
+# Arduino CLI cache
+sketches/
+
+# Compiled object files
+*.o
+*.a
+*.d
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Clang
+.cache/
+compile_commands.json
+
+# Python (for any scripts)
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log

@@ -1,0 +1,37 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+    -   id: trailing-whitespace
+    -   id: end-of-file-fixer
+    -   id: check-yaml
+    -   id: check-added-large-files
+        args: [--maxkb=5000]
+    -   id: check-merge-conflict
+    -   id: detect-private-key
+
+-   repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v19.1.0
+    hooks:
+    -   id: clang-format
+        types_or: [c, c++]
+
+-   repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.0
+    hooks:
+    -   id: ruff
+        args: ["--fix", "--select", "I"]
+    -   id: ruff-format
+
+-   repo: local
+    hooks:
+    -   id: deps-sync
+        name: "Check venv = requirements.txt"
+        language: system
+        always_run: true
+        pass_filenames: false
+        entry: hooks/deps-sync.sh
+        verbose: true
