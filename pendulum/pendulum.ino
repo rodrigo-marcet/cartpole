@@ -6,6 +6,7 @@
 #include "src/config.h"
 #include "src/setup/serial_setup.h"
 #include "src/setup/I2C_setup.h"
+#include "src/setup/LED_setup.h"
 #include "src/setup/CAN_setup.h"
 #include "src/setup/odrive_setup.h"
 
@@ -15,9 +16,9 @@
 /* ----------------- Setup ---------------- */
 
 void setup() {
+	initLED();    // visual feedback
 	initSerial(); // debug first
 	initI2C();    // bus before devices
-	// initLed();      // visual feedback //TODO
 	// initEncoder();   // validates AS5600 presence //TODO
 	initCAN();
 	initODrive();

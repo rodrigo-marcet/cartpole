@@ -3,6 +3,7 @@
 #include <ESP32-TWAI-CAN.hpp>
 
 #include "src/config.h"
+#include "LED_setup.h"
 
 static bool setupCan() {
 	const auto kbps = CAN_BAUDRATE / 1000;
@@ -16,8 +17,6 @@ static bool setupCan() {
 void initCAN() {
 	if (!setupCan()) {
 		Serial.println("CAN failed to initialize: reset required");
-		while (true) {
-			delay(50);
-		}
+		haltWithLED(Color::ORANGE);
 	}
 }

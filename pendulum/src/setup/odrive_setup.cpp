@@ -1,5 +1,7 @@
 #include "odrive_setup.h"
 
+#include "LED_setup.h"
+
 ODriveCAN odrv0(wrap_can_intf(ESP32Can), ODRV0_NODE_ID);
 ODriveCAN *odrives[] = {&odrv0};
 ODriveUserData odrv0_user_data;
@@ -30,32 +32,33 @@ void initODrive() {
 	odrv0.onFeedback(onFeedback, &odrv0_user_data);
 	odrv0.onStatus(onHeartbeat, &odrv0_user_data);
 
-	// Init CAN
-
 	// Wait for ODrive heartbeat (pump events; add tiny yield)
-	Serial.println("Waiting for ODrive...");
+	Serial.println("[BOOT] Waiting for ODrive heartbeat...");
+	uint32_t t = millis();
 	while (!odrv0_user_data.received_heartbeat) {
 		pumpEvents(ESP32Can);
 		delay(1);
-	}
-	Serial.println("Found ODrive");
-
-	// Request bus voltage/current (1s timeout)
-	Serial.println("Attempting to read bus voltage and current");
-	Get_Bus_Voltage_Current_msg_t vbus;
-	if (!odrv0.request(vbus, 1000)) {
-		Serial.println("vbus request failed!");
-		while (true) {
-			delay(50);
+		if (millis() - t > 5000) {
+			Serial.println("[BOOT] ERROR: ODrive heartbeat timeout");
+			haltWithLED(Color::YELLOW);
 		}
 	}
-	Serial.print("DC voltage [V]: ");
+	Serial.println("[BOOT] ODrive found");
+
+	// Request bus voltage/current (1s timeout)
+	Serial.println("[BOOT] Attempting to read bus voltage and current");
+	Get_Bus_Voltage_Current_msg_t vbus;
+	if (!odrv0.request(vbus, 1000)) {
+		Serial.println("[BOOT] ERROR: vbus request failed");
+		haltWithLED(Color::YELLOW);
+	}
+	Serial.print("[BOOT] DC voltage [V]: ");
 	Serial.println(vbus.Bus_Voltage);
-	Serial.print("DC current [A]: ");
+	Serial.print("[BOOT] DC current [A]: ");
 	Serial.println(vbus.Bus_Current);
 
 	// Enter CLOSED_LOOP_CONTROL with periodic event pumping (mirrors official flow)
-	Serial.println("Enabling CLOSED_LOOP_CONTROL...");
+	Serial.println("[BOOT] Enabling CLOSED_LOOP_CONTROL...");
 	while (odrv0_user_data.last_heartbeat.Axis_State != ODriveAxisState::AXIS_STATE_CLOSED_LOOP_CONTROL) {
 		odrv0.clearErrors();
 		delay(1);
@@ -66,7 +69,11 @@ void initODrive() {
 			delay(10);
 			pumpEvents(ESP32Can);
 		}
+		if (millis() - t > 10000) {
+			Serial.println("[BOOT] ERROR: closed loop transition timeout");
+			haltWithLED(Color::YELLOW);
+		}
 	}
 
-	Serial.println("ODrive running!");
+	Serial.println("[BOOT] ODrive running");
 }
