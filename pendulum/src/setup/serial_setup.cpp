@@ -3,6 +3,8 @@
 
 #include "LED_setup.h"
 
+#include "src/utils/log_macros.h"
+
 void initSerial() {
 	Serial.begin(SERIAL_BAUD);
 	while (!Serial && millis() < 3000)
@@ -11,5 +13,5 @@ void initSerial() {
 	if (millis() >= 3000)
 		haltWithLED(Color::RED);
 
-	Serial.println("[BOOT] Serial OK");
+	BOOT_LOG("Serial OK");
 }

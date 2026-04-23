@@ -5,6 +5,8 @@
 #include "src/config.h"
 #include "LED_setup.h"
 
+#include "src/utils/log_macros.h"
+
 static bool setupCan() {
 	const auto kbps = CAN_BAUDRATE / 1000;
 	// You can omit setPins if begin() accepts pins; kept explicit for clarity
@@ -16,7 +18,8 @@ static bool setupCan() {
 
 void initCAN() {
 	if (!setupCan()) {
-		Serial.println("CAN failed to initialize: reset required");
+		BOOT_ERROR("CAN failed to initialize: reset required");
 		haltWithLED(Color::ORANGE);
 	}
+	BOOT_LOG("CAN Ok");
 }
