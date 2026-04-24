@@ -14,15 +14,9 @@ void onHeartbeat(Heartbeat_msg_t &msg, void *user_data) {
 	d->received_heartbeat = true;
 }
 
-// Called on encoder feedback from ODrive
-void onFeedback(Get_Encoder_Estimates_msg_t &msg, void *user_data) {
-	auto *d = static_cast<ODriveUserData *>(user_data);
-	d->last_feedback = msg;
-	d->received_feedback = true;
-}
-
 // Your TWAI adapter expects this hook; forward to all ODriveCAN instances
 void onCanFrame(uint32_t id, uint8_t len, const uint8_t *data) {
+	Serial.println(id, HEX); // <-- add this
 	for (auto *odrive : odrives) {
 		odrive->onReceive(id, len, data);
 	}
@@ -30,7 +24,6 @@ void onCanFrame(uint32_t id, uint8_t len, const uint8_t *data) {
 
 void initODrive() {
 	// Register ODrive callbacks
-	odrv0.onFeedback(onFeedback, &odrv0_user_data);
 	odrv0.onStatus(onHeartbeat, &odrv0_user_data);
 
 	// Wait for ODrive heartbeat (pump events; add tiny yield)

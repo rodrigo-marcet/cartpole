@@ -6,7 +6,7 @@
 #include "as5600_state.h"
 
 SequenceState calibration_sequence() {
-	static CalibrationState current_state = CalibrationState::AS5600;
+	static CalibrationState current_state = CalibrationState::Done;
 
 	static unsigned long last_sample_time = 0;
 	unsigned long t = micros();
@@ -14,6 +14,18 @@ SequenceState calibration_sequence() {
 
 	switch (current_state) {
 	case CalibrationState::AS5600:
+		if (dt < 1000)
+			break;
+
+		last_sample_time = t;
+
+		if (as5600_calibration()) {
+			Serial.print("--- AS5600 calibration done.\n");
+			current_state = CalibrationState::Done;
+		}
+		break;
+
+	case CalibrationState::ODRIVE:
 		if (dt < 1000)
 			break;
 
