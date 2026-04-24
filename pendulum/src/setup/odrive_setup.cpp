@@ -16,7 +16,6 @@ void onHeartbeat(Heartbeat_msg_t &msg, void *user_data) {
 
 // Your TWAI adapter expects this hook; forward to all ODriveCAN instances
 void onCanFrame(uint32_t id, uint8_t len, const uint8_t *data) {
-	Serial.println(id, HEX); // <-- add this
 	for (auto *odrive : odrives) {
 		odrive->onReceive(id, len, data);
 	}
@@ -46,10 +45,8 @@ void initODrive() {
 		BOOT_ERROR("vbus request failed");
 		haltWithLED(Color::YELLOW);
 	}
-	BOOT_LOG("DC voltage [V]: ");
-	Serial.println(vbus.Bus_Voltage);
-	BOOT_LOG("DC current [A]: ");
-	Serial.println(vbus.Bus_Current);
+	BOOT_LOG("DC voltage [V]: %.2f", vbus.Bus_Voltage);
+	BOOT_LOG("DC current [A]: %.2f", vbus.Bus_Current);
 
 	// Enter CLOSED_LOOP_CONTROL with periodic event pumping (mirrors official flow)
 	BOOT_LOG("Enabling CLOSED_LOOP_CONTROL...");

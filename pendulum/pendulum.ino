@@ -10,6 +10,8 @@
 #include "src/setup/CAN_setup.h"
 #include "src/setup/odrive_setup.h"
 
+#include "src/utils/log_macros.h"
+
 /* ----------------- Setup ---------------- */
 
 void setup() {
@@ -21,6 +23,8 @@ void setup() {
 	initODrive();
 	// initFSM();
 	// initTimers();
+
+	BOOT_LOG("\n");
 }
 
 void loop() {

@@ -5,6 +5,7 @@
 
 #include "../../utils/as5600.h"
 #include "src/setup/odrive_setup.h"
+#include "src/utils/log_macros.h"
 
 // SequenceState running_sequence() {
 // 	double rads = as5600_read_rads();
@@ -34,10 +35,8 @@ SequenceState running_sequence() {
 	// Print position & velocity for Serial Plotter
 	Get_Encoder_Estimates_msg_t fb;
 	if (odrv0.request(fb, 100)) { // 100ms timeout
-		Serial.print("pos: ");
-		Serial.println(fb.Pos_Estimate);
-		Serial.print("vel: ");
-		Serial.println(fb.Vel_Estimate);
+		LOOP_LOG("pos: %.2f", fb.Pos_Estimate);
+		LOOP_LOG("vel: %.2f", fb.Vel_Estimate);
 	}
 
 	return SequenceState::Running;

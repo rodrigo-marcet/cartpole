@@ -5,6 +5,8 @@
 
 #include "as5600_state.h"
 
+#include "src/utils/log_macros.h"
+
 SequenceState calibration_sequence() {
 	static CalibrationState current_state = CalibrationState::Done;
 
@@ -20,7 +22,7 @@ SequenceState calibration_sequence() {
 		last_sample_time = t;
 
 		if (as5600_calibration()) {
-			Serial.print("--- AS5600 calibration done.\n");
+			LOOP_LOG("--- AS5600 calibration done.\n");
 			current_state = CalibrationState::Done;
 		}
 		break;
@@ -32,7 +34,7 @@ SequenceState calibration_sequence() {
 		last_sample_time = t;
 
 		if (as5600_calibration()) {
-			Serial.print("--- AS5600 calibration done.\n");
+			LOOP_LOG("--- AS5600 calibration 2 done.\n");
 			current_state = CalibrationState::Done;
 		}
 		break;
@@ -42,7 +44,7 @@ SequenceState calibration_sequence() {
 		break;
 
 	default:
-		Serial.print("Calibration sequence got an unknown state.");
+		LOOP_ERROR("Calibration sequence got an unknown state.");
 		return SequenceState::Error;
 		break;
 	}
