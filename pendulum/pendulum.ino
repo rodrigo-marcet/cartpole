@@ -24,10 +24,9 @@ void setup() {
 	// initFSM();
 	// initTimers();
 
-	BOOT_LOG("\n");
+	BOOT_LOG("SETUP FINISHED\n");
 }
 
 void loop() {
 	hfsm();
 }
-/* ----------------- Loop ---------------- */

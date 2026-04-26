@@ -52,7 +52,9 @@ void initODrive() {
 	BOOT_LOG("Enabling CLOSED_LOOP_CONTROL...");
 	while (odrv0_user_data.last_heartbeat.Axis_State != ODriveAxisState::AXIS_STATE_CLOSED_LOOP_CONTROL) {
 		odrv0.clearErrors();
-		delay(1);
+		pumpEvents(ESP32Can);
+		delay(10);
+
 		odrv0.setState(ODriveAxisState::AXIS_STATE_CLOSED_LOOP_CONTROL);
 
 		// Pump events for ~150ms to ensure reliable state transition even on busy bus
@@ -65,6 +67,12 @@ void initODrive() {
 			haltWithLED(Color::YELLOW);
 		}
 	}
+	if (!odrv0.setControllerMode(ODriveControlMode::CONTROL_MODE_TORQUE_CONTROL,
+	                             ODriveInputMode::INPUT_MODE_PASSTHROUGH)) {
+		BOOT_ERROR("Control mode wasn't set properly");
+		haltWithLED(Color::YELLOW);
+	}
+	BOOT_LOG("Odrive now in torque control");
 
 	BOOT_LOG("ODrive Ok");
 }

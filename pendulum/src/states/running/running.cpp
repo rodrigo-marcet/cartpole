@@ -20,24 +20,25 @@
 // }
 
 SequenceState running_sequence() {
-	delay(10);
-	pumpEvents(ESP32Can);
+	// // delay(10);
+	// pumpEvents(ESP32Can);
 
-	// Official example motion: sine position with velocity feedforward
-	const float SINE_PERIOD_S = 2.0f;
-	float t = 0.001f * millis();
-	float phase = t * (TWO_PI / SINE_PERIOD_S);
+	// // Official example motion: sine position with velocity feedforward
+	// const float SINE_PERIOD_S = 2.0f;
+	// float t = 0.001f * millis();
+	// float phase = t * (TWO_PI / SINE_PERIOD_S);
 
-	odrv0.setPosition(sinf(phase),                           // position (turns)
-	                  cosf(phase) * (TWO_PI / SINE_PERIOD_S) // velocity feedforward
-	);
+	// odrv0.setPosition(sinf(phase),                           // position (turns)
+	//                   cosf(phase) * (TWO_PI / SINE_PERIOD_S) // velocity feedforward
+	// );
 
-	// Print position & velocity for Serial Plotter
-	Get_Encoder_Estimates_msg_t fb;
-	if (odrv0.request(fb, 100)) { // 100ms timeout
-		LOOP_LOG("pos: %.2f", fb.Pos_Estimate);
-		LOOP_LOG("vel: %.2f", fb.Vel_Estimate);
-	}
+	// // Print position & velocity for Serial Plotter
+	// Get_Encoder_Estimates_msg_t fb;
+	// if (odrv0.request(fb, 10)) { // 100ms timeout
+	// 	LOOP_LOG("pos: %.2f", fb.Pos_Estimate);
+	// 	LOOP_LOG("vel: %.2f", fb.Vel_Estimate);
+	// 	LOOP_LOG("millis: %i", millis());
+	// }
 
 	return SequenceState::Running;
 }

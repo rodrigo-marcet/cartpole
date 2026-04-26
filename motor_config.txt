@@ -1,0 +1,14 @@
+odrv0.axis0.controller.config.control_mode
+1: torque
+2: vel
+3: pos
+
+
+odrv0.axis0.controller.config.input_mode
+1: raw
+2: vel ramp
+3: pos filter
+5: trapezoid
+
+
+odrv0.axis0.controller.config.vel_gain = 0.1 -> P factor of the PID loop

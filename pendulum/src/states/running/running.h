@@ -1,5 +1,5 @@
 #pragma once
 
-#include "../../hfsm_types.h"
+#include "src/utils/hfsm_types.h"
 
 SequenceState running_sequence();
