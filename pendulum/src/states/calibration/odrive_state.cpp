@@ -35,38 +35,51 @@ SequenceState odrive_calibration() {
 	case OdriveCalibrationState::ENABLE_VELOCITY_CONTROL_POSITIVE: {
 		if (!odrv0.setControllerMode(ODriveControlMode::CONTROL_MODE_VELOCITY_CONTROL,
 		                             ODriveInputMode::INPUT_MODE_PASSTHROUGH)) {
-			LOOP_ERROR("Switching to velocity control on ENABLE_VELOCITY_CONTROL_POSITIVE was not possible");
+			LOOP_ERROR("Failed to enable velocity control (positive)");
 			current_state = OdriveCalibrationState::ERROR;
 		} else {
+			LOOP_LOG("Velocity control (positive) enabled");
 			current_state = OdriveCalibrationState::MOVE_TO_POSITIVE_LIMIT;
 		}
-
 		break;
 	}
 
 	case OdriveCalibrationState::MOVE_TO_POSITIVE_LIMIT: {
 		if (move_to_limit(Direction::Positive)) {
 			odrv0.setVelocity(0.0f, 0.0f);
+			LOOP_LOG("Reached positive limit");
 			current_state = OdriveCalibrationState::SAVE_UPPER_LIMIT;
 		}
-		LOOP_LOG("moving to positive limit");
-
 		break;
 	}
+
 	case OdriveCalibrationState::SAVE_UPPER_LIMIT: {
 		EncoderEstimatesResult res = get_encoder_estimates();
 		if (res.ok) {
 			upper_limit = res.pos;
 			LOOP_LOG("upper_limit = %.2f", upper_limit);
-			odrv0.clearErrors();
-			pumpEvents(ESP32Can);
-			delay(10);
 
-			odrv0.setState(ODriveAxisState::AXIS_STATE_CLOSED_LOOP_CONTROL);
-
-			current_state = OdriveCalibrationState::ENABLE_POSITION_CONTROL_1;
+			current_state = OdriveCalibrationState::MANAGE_ERRORS_1;
 		}
 
+		break;
+	}
+	case OdriveCalibrationState::MANAGE_ERRORS_1: {
+		odrv0.clearErrors();
+		odrv0.setState(ODriveAxisState::AXIS_STATE_CLOSED_LOOP_CONTROL);
+
+		LOOP_LOG("Errors managed succesfully (1)");
+		current_state = OdriveCalibrationState::WAIT_FOR_CLOSED_LOOP_1;
+		break;
+	}
+	case OdriveCalibrationState::WAIT_FOR_CLOSED_LOOP_1: {
+		Heartbeat_msg_t hb;
+		if (odrv0.request(hb, 1)) {
+			if (hb.Axis_State == ODriveAxisState::AXIS_STATE_CLOSED_LOOP_CONTROL) {
+				LOOP_LOG("Closed loop confirmed (1)");
+				current_state = OdriveCalibrationState::ENABLE_POSITION_CONTROL_1;
+			}
+		}
 		break;
 	}
 	case OdriveCalibrationState::ENABLE_POSITION_CONTROL_1: {
@@ -75,27 +88,30 @@ SequenceState odrive_calibration() {
 			LOOP_ERROR("Switching to position control on ENABLE_POSITION_CONTROL_1 was not possible");
 			current_state = OdriveCalibrationState::ERROR;
 		} else {
-			LOOP_LOG("POSITION CONTROL SET CORRECTLY");
+			LOOP_LOG("Position control (1) set succesfully");
 
 			current_state = OdriveCalibrationState::GO_TO_INIT_POS;
 		}
 		break;
 	}
 	case OdriveCalibrationState::GO_TO_INIT_POS: {
-		// LOOP_LOG("MOVING TO INIT_POS");
+		if (move_to_position(init_pos)) {
+			LOOP_LOG("Reached init_pos successfully");
 
-		if (move_to_position(init_pos))
 			current_state = OdriveCalibrationState::ENABLE_VELOCITY_CONTROL_NEGATIVE;
+		}
 
 		break;
 	}
 	case OdriveCalibrationState::ENABLE_VELOCITY_CONTROL_NEGATIVE: {
 		if (!odrv0.setControllerMode(ODriveControlMode::CONTROL_MODE_VELOCITY_CONTROL,
 		                             ODriveInputMode::INPUT_MODE_PASSTHROUGH)) {
-			LOOP_ERROR("Switching to velocity control on ENABLE_VELOCITY_CONTROL_POSITIVE was not possible");
+			LOOP_ERROR("Failed to enable velocity control (positive)");
 			current_state = OdriveCalibrationState::ERROR;
-		} else
+		} else {
+			LOOP_LOG("Velocity control (positive) enabled");
 			current_state = OdriveCalibrationState::MOVE_TO_NEGATIVE_LIMIT;
+		}
 
 		break;
 	}
@@ -103,9 +119,9 @@ SequenceState odrive_calibration() {
 	case OdriveCalibrationState::MOVE_TO_NEGATIVE_LIMIT: {
 		if (move_to_limit(Direction::Negative)) {
 			odrv0.setVelocity(0.0f, 0.0f);
+			LOOP_LOG("Reached negative limit");
 			current_state = OdriveCalibrationState::SAVE_LOWER_LIMIT;
 		}
-		LOOP_LOG("moving to negative limit");
 
 		break;
 	}
@@ -116,14 +132,25 @@ SequenceState odrive_calibration() {
 			lower_limit = res.pos;
 			LOOP_LOG("lower_limit = %.2f", lower_limit);
 
-			LOOP_LOG("upper_limit = %.2f", upper_limit);
-			odrv0.clearErrors();
-			pumpEvents(ESP32Can);
-			delay(10);
+			current_state = OdriveCalibrationState::MANAGE_ERRORS_2;
+		}
+		break;
+	}
+	case OdriveCalibrationState::MANAGE_ERRORS_2: {
+		odrv0.clearErrors();
+		odrv0.setState(ODriveAxisState::AXIS_STATE_CLOSED_LOOP_CONTROL);
 
-			odrv0.setState(ODriveAxisState::AXIS_STATE_CLOSED_LOOP_CONTROL);
-
-			current_state = OdriveCalibrationState::CALCULATE_VALUES;
+		LOOP_LOG("Errors managed succesfully (1)");
+		current_state = OdriveCalibrationState::WAIT_FOR_CLOSED_LOOP_2;
+		break;
+	}
+	case OdriveCalibrationState::WAIT_FOR_CLOSED_LOOP_2: {
+		Heartbeat_msg_t hb;
+		if (odrv0.request(hb, 1)) {
+			if (hb.Axis_State == ODriveAxisState::AXIS_STATE_CLOSED_LOOP_CONTROL) {
+				LOOP_LOG("Closed loop confirmed (2)");
+				current_state = OdriveCalibrationState::CALCULATE_VALUES;
+			}
 		}
 		break;
 	}
@@ -134,6 +161,8 @@ SequenceState odrive_calibration() {
 			midpoint = limits.midpoint;
 			lower_limit = limits.lower_limit;
 			upper_limit = limits.upper_limit;
+
+			LOOP_LOG("midpoint = %.2d, upper_limit = %.2d, lower_limit = %.2d", midpoint, upper_limit, lower_limit);
 			current_state = OdriveCalibrationState::ENABLE_POSITION_CONTROL_2;
 		} else
 			current_state = OdriveCalibrationState::ERROR;
@@ -146,22 +175,26 @@ SequenceState odrive_calibration() {
 		                             ODriveInputMode::INPUT_MODE_TRAP_TRAJ)) {
 			LOOP_ERROR("Switching to position control on ENABLE_POSITION_CONTROL_2 was not possible");
 			current_state = OdriveCalibrationState::ERROR;
-		} else
+		} else {
+			LOOP_LOG("Position control (2) set succesfully");
 			current_state = OdriveCalibrationState::GO_TO_MID_POINT;
-
+		}
 		break;
 	}
 
 	case OdriveCalibrationState::GO_TO_MID_POINT: {
-		if (move_to_position(midpoint))
+		if (move_to_position(midpoint)) {
+			LOOP_LOG("Reached midpoint successfully");
+
 			current_state = OdriveCalibrationState::DONE;
+		}
 
 		break;
 	}
 
 	case OdriveCalibrationState::DONE: {
 		odrv0.setState(ODriveAxisState::AXIS_STATE_IDLE);
-
+		LOOP_LOG("Succesfully calibrated rail dimensions");
 		return SequenceState::Done;
 	}
 
@@ -210,7 +243,6 @@ bool move_to_position(float position) {
 		return true;
 	}
 
-	LOOP_LOG("NOT YET IN POSITION %.2f", fabsf(res.pos - position));
 	return false;
 }
 
