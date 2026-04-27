@@ -4,4 +4,4 @@
 
 #include "src/config.h"
 
-void initI2C();
+void init_i2c();

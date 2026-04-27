@@ -23,8 +23,8 @@ SequenceState calibration_sequence() {
 		last_sample_time = t;
 
 		if (as5600_calibration()) {
-			LOOP_LOG("AS5600 calibration done.\n");
-			current_state = CalibrationState::Done;
+			LOOP_LOG("AS5600 calibration DONE.\n");
+			current_state = CalibrationState::DONE;
 		}
 		break;
 	}
@@ -34,25 +34,25 @@ SequenceState calibration_sequence() {
 
 		last_sample_time = t;
 		SequenceState result = odrive_calibration();
-		if (result == SequenceState::Done) {
-			LOOP_LOG("Odrive calibration done.\n");
-			current_state = CalibrationState::Done;
-		} else if (result == SequenceState::Error) {
-			current_state = CalibrationState::Error;
+		if (result == SequenceState::DONE) {
+			LOOP_LOG("Odrive calibration DONE.\n");
+			current_state = CalibrationState::DONE;
+		} else if (result == SequenceState::ERROR) {
+			current_state = CalibrationState::ERROR;
 		}
 		break;
 	}
-	case CalibrationState::Done:
-		return SequenceState::Done;
+	case CalibrationState::DONE:
+		return SequenceState::DONE;
 
-	case CalibrationState::Error:
-		return SequenceState::Error;
+	case CalibrationState::ERROR:
+		return SequenceState::ERROR;
 
 	default:
 		LOOP_ERROR("Calibration sequence got an unknown state.");
-		current_state = CalibrationState::Error;
+		current_state = CalibrationState::ERROR;
 		break;
 	}
 
-	return SequenceState::Running;
+	return SequenceState::RUNNING;
 }

@@ -7,23 +7,23 @@
 
 static Adafruit_NeoPixel led(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 
-void initLED() {
+void init_led() {
 	led.begin();
 	led.setBrightness(50); // don't blind yourself
 	led.clear();
 	led.show();
 }
 
-void setLED(uint32_t color) {
-	led.setPixelColor(0, color);
+void set_led(Color color) {
+	led.setPixelColor(0, (uint32_t)color);
 	led.show();
 }
 
-void haltWithLED(uint32_t color) {
+void halt_with_led(Color color) {
 	while (true) {
-		setLED(color);
+		set_led(color);
 		delay(300);
-		setLED(0);
+		set_led(Color::OFF);
 		delay(300);
 	}
 }

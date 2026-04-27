@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-enum Color : uint32_t {
+enum class Color : uint32_t {
 	RED = 0xFF0000,
 	ORANGE = 0xFF5500,
 	YELLOW = 0xFFAA00,
@@ -14,6 +14,6 @@ enum Color : uint32_t {
 	OFF = 0x000000
 };
 
-void initLED();
-void setLED(uint32_t color);
-void haltWithLED(uint32_t color);
+void init_led();
+void set_led(Color color);
+void halt_with_led(Color color);

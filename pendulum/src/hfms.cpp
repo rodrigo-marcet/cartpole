@@ -8,18 +8,18 @@
 #include "src/utils/log_macros.h"
 
 void hfsm() {
-	static HFSMState current_state = HFSMState::Calibration;
+	static HFSMState current_state = HFSMState::CALIBRATION;
 
 	switch (current_state) {
-	case HFSMState::Calibration:
-		if (calibration_sequence() == SequenceState::Done) {
+	case HFSMState::CALIBRATION:
+		if (calibration_sequence() == SequenceState::DONE) {
 			LOOP_LOG("Calibration completed.");
-			current_state = HFSMState::Running;
+			current_state = HFSMState::RUNNING;
 		}
 		break;
 
-	case HFSMState::Running:
-		if (running_sequence() == SequenceState::Done) {
+	case HFSMState::RUNNING:
+		if (running_sequence() == SequenceState::DONE) {
 			LOOP_LOG("Running sequence exited.\n");
 		}
 

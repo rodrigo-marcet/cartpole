@@ -2,6 +2,6 @@
 
 #include <Arduino.h>
 
-enum class HFSMState : uint8_t { Calibration = 1, Running = 2 };
+enum class HFSMState : uint8_t { CALIBRATION = 1, RUNNING = 2 };
 
 void hfsm();

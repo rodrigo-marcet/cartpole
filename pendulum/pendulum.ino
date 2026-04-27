@@ -15,12 +15,12 @@
 /* ----------------- Setup ---------------- */
 
 void setup() {
-	initLED();    // visual feedback
-	initSerial(); // debug first
-	initI2C();    // bus before devices
+	init_led();    // visual feedback
+	init_serial(); // debug first
+	init_i2c();    // bus before devices
 	// initEncoder();   // validates AS5600 presence //TODO
-	initCAN();
-	initODrive();
+	init_can();
+	init_odrive();
 	// initFSM();
 	// initTimers();
 

@@ -21,7 +21,7 @@ void onCanFrame(uint32_t id, uint8_t len, const uint8_t *data) {
 	}
 }
 
-void initODrive() {
+void init_odrive() {
 	// Register ODrive callbacks
 	odrv0.onStatus(onHeartbeat, &odrv0_user_data);
 
@@ -33,7 +33,7 @@ void initODrive() {
 		delay(1);
 		if (millis() - t > 5000) {
 			BOOT_ERROR("ODrive heartbeat timeout");
-			haltWithLED(Color::YELLOW);
+			halt_with_led(Color::YELLOW);
 		}
 	}
 	BOOT_LOG("ODrive found");
@@ -43,7 +43,7 @@ void initODrive() {
 	Get_Bus_Voltage_Current_msg_t vbus;
 	if (!odrv0.request(vbus, 1000)) {
 		BOOT_ERROR("vbus request failed");
-		haltWithLED(Color::YELLOW);
+		halt_with_led(Color::YELLOW);
 	}
 	BOOT_LOG("DC voltage [V]: %.2f", vbus.Bus_Voltage);
 	BOOT_LOG("DC current [A]: %.2f", vbus.Bus_Current);
@@ -64,13 +64,13 @@ void initODrive() {
 		}
 		if (millis() - t > 10000) {
 			BOOT_ERROR("closed loop transition timeout");
-			haltWithLED(Color::YELLOW);
+			halt_with_led(Color::YELLOW);
 		}
 	}
 	if (!odrv0.setControllerMode(ODriveControlMode::CONTROL_MODE_TORQUE_CONTROL,
 	                             ODriveInputMode::INPUT_MODE_PASSTHROUGH)) {
 		BOOT_ERROR("Control mode wasn't set properly");
-		haltWithLED(Color::YELLOW);
+		halt_with_led(Color::YELLOW);
 	}
 	BOOT_LOG("Odrive now in torque control");
 

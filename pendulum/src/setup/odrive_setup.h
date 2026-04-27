@@ -25,4 +25,4 @@ void onFeedback(Get_Encoder_Estimates_msg_t &msg, void *user_data);
 // Your TWAI adapter expects this hook; forward to all ODriveCAN instances
 void onCanFrame(uint32_t id, uint8_t len, const uint8_t *data);
 
-void initODrive();
+void init_odrive();

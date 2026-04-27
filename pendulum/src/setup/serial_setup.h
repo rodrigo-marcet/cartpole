@@ -2,4 +2,4 @@
 
 #include <Arduino.h>
 
-void initSerial();
+void init_serial();

@@ -3,7 +3,7 @@
 #include <ESP32-TWAI-CAN.hpp>
 
 #include "src/config.h"
-#include "LED_setup.h"
+#include "src/setup/LED_setup.h"
 
 #include "src/utils/log_macros.h"
 
@@ -16,10 +16,10 @@ static bool setupCan() {
 	return ESP32Can.begin(ESP32Can.convertSpeed(kbps), CAN_TX_PIN, CAN_RX_PIN);
 }
 
-void initCAN() {
+void init_can() {
 	if (!setupCan()) {
 		BOOT_ERROR("CAN failed to initialize: reset required");
-		haltWithLED(Color::ORANGE);
+		halt_with_led(Color::ORANGE);
 	}
 	BOOT_LOG("CAN Ok");
 }

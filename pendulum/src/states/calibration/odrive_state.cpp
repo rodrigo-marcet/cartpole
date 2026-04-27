@@ -45,7 +45,7 @@ SequenceState odrive_calibration() {
 	}
 
 	case OdriveCalibrationState::MOVE_TO_POSITIVE_LIMIT: {
-		if (move_to_limit(Direction::Positive)) {
+		if (move_to_limit(Direction::POSITIVE)) {
 			odrv0.setVelocity(0.0f, 0.0f);
 			LOOP_LOG("Reached positive limit");
 			current_state = OdriveCalibrationState::SAVE_UPPER_LIMIT;
@@ -68,7 +68,7 @@ SequenceState odrive_calibration() {
 		odrv0.clearErrors();
 		odrv0.setState(ODriveAxisState::AXIS_STATE_CLOSED_LOOP_CONTROL);
 
-		LOOP_LOG("Errors managed succesfully (1)");
+		LOOP_LOG("ERRORs managed succesfully (1)");
 		current_state = OdriveCalibrationState::WAIT_FOR_CLOSED_LOOP_1;
 		break;
 	}
@@ -117,7 +117,7 @@ SequenceState odrive_calibration() {
 	}
 
 	case OdriveCalibrationState::MOVE_TO_NEGATIVE_LIMIT: {
-		if (move_to_limit(Direction::Negative)) {
+		if (move_to_limit(Direction::NEGATIVE)) {
 			odrv0.setVelocity(0.0f, 0.0f);
 			LOOP_LOG("Reached negative limit");
 			current_state = OdriveCalibrationState::SAVE_LOWER_LIMIT;
@@ -134,13 +134,14 @@ SequenceState odrive_calibration() {
 
 			current_state = OdriveCalibrationState::MANAGE_ERRORS_2;
 		}
+
 		break;
 	}
 	case OdriveCalibrationState::MANAGE_ERRORS_2: {
 		odrv0.clearErrors();
 		odrv0.setState(ODriveAxisState::AXIS_STATE_CLOSED_LOOP_CONTROL);
 
-		LOOP_LOG("Errors managed succesfully (1)");
+		LOOP_LOG("ERRORs managed succesfully (1)");
 		current_state = OdriveCalibrationState::WAIT_FOR_CLOSED_LOOP_2;
 		break;
 	}
@@ -195,12 +196,12 @@ SequenceState odrive_calibration() {
 	case OdriveCalibrationState::DONE: {
 		odrv0.setState(ODriveAxisState::AXIS_STATE_IDLE);
 		LOOP_LOG("Succesfully calibrated rail dimensions");
-		return SequenceState::Done;
+		return SequenceState::DONE;
 	}
 
 	case OdriveCalibrationState::ERROR: {
 		odrv0.setState(ODriveAxisState::AXIS_STATE_IDLE);
-		return SequenceState::Error;
+		return SequenceState::ERROR;
 	}
 
 	default: {
@@ -209,12 +210,12 @@ SequenceState odrive_calibration() {
 		break;
 	}
 	}
-	return SequenceState::Running;
+	return SequenceState::RUNNING;
 }
 
 bool move_to_limit(Direction direction) {
 	static bool moving = false;
-	int8_t d = direction == Direction::Positive ? 1 : -1;
+	int8_t d = direction == Direction::POSITIVE ? 1 : -1;
 
 	odrv0.setVelocity(CALIBRATION_VELOCITY * d, 0.0f);
 
@@ -233,7 +234,7 @@ bool move_to_limit(Direction direction) {
 }
 
 bool move_to_position(float position) {
-	odrv0.setTrapezoidalVelLimit(3.0f);
+	odrv0.setTrapezoidalVelLimit(6.0f);
 	odrv0.setTrapezoidalAccelLimits(10.0f, 10.0f);
 	odrv0.setPosition(position, 0.0f);
 

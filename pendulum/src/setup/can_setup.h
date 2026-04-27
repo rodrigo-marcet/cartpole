@@ -2,4 +2,4 @@
 
 static bool setupCan();
 
-void initCAN();
+void init_can();

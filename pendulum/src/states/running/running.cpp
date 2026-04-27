@@ -16,7 +16,7 @@
 // 	Serial.print(c, 6);
 // 	Serial.print("\n");
 
-// 	return SequenceState::Running;
+// 	return SequenceState::RUNNING;
 // }
 
 SequenceState running_sequence() {
@@ -40,5 +40,5 @@ SequenceState running_sequence() {
 	// 	LOOP_LOG("millis: %i", millis());
 	// }
 
-	return SequenceState::Running;
+	return SequenceState::RUNNING;
 }
