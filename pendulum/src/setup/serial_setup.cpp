@@ -1,9 +1,10 @@
-#include "serial_setup.h"
-#include "src/config.h"
+#include "src/setup/serial_setup.h"
 
-#include "LED_setup.h"
+#include "src/setup/LED_setup.h"
 
 #include "src/utils/log_macros.h"
+
+#include "src/config.h"
 
 void init_serial() {
 	Serial.begin(SERIAL_BAUD);

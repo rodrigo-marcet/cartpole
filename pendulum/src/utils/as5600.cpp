@@ -1,4 +1,4 @@
-#include "as5600.h"
+#include "src/utils/as5600.h"
 
 #include <Wire.h>
 #include <Arduino.h>

@@ -1,6 +1,6 @@
-#include "LED_setup.h"
+#include "src/setup/LED_setup.h"
 
-#include "Adafruit_NeoPixel.h"
+#include <Adafruit_NeoPixel.h>
 
 #define LED_PIN 48 // ESP32-S3 has a built-in NeoPixel on GPIO48
 #define LED_COUNT 1

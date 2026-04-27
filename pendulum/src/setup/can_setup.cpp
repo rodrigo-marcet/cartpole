@@ -1,11 +1,12 @@
-#include "can_setup.h"
+#include "src/setup/CAN_setup.h"
 
 #include <ESP32-TWAI-CAN.hpp>
 
-#include "src/config.h"
 #include "src/setup/LED_setup.h"
 
 #include "src/utils/log_macros.h"
+
+#include "src/config.h"
 
 static bool setupCan() {
 	const auto kbps = CAN_BAUDRATE / 1000;

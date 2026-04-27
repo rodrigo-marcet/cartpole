@@ -3,8 +3,8 @@
 #include <Arduino.h>
 #include <Wire.h>
 
-#include "as5600_state.h"
-#include "odrive_state.h"
+#include "src/states/calibration/as5600_state.h"
+#include "src/states/calibration/odrive_state.h"
 
 #include "src/utils/log_macros.h"
 

@@ -4,6 +4,7 @@
 #include "src/hfsm.h"
 
 #include "src/config.h"
+
 #include "src/setup/serial_setup.h"
 #include "src/setup/I2C_setup.h"
 #include "src/setup/LED_setup.h"

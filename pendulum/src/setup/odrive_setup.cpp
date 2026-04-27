@@ -1,6 +1,7 @@
-#include "odrive_setup.h"
+#include "src/setup/odrive_setup.h"
 
-#include "LED_setup.h"
+#include "src/setup/LED_setup.h"
+
 #include "src/utils/log_macros.h"
 
 ODriveCAN odrv0(wrap_can_intf(ESP32Can), ODRV0_NODE_ID);

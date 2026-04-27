@@ -1,9 +1,9 @@
-#include "as5600_state.h"
+#include "src/states/calibration/as5600_state.h"
 
 #include <Arduino.h>
 #include <Wire.h>
 
-#include "../../utils/as5600.h"
+#include "src/utils/as5600.h"
 
 bool as5600_calibration() {
 	static double rads = 0;

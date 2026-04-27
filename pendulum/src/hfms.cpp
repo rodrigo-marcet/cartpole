@@ -1,10 +1,11 @@
-#include "hfsm.h"
-#include "src/utils/hfsm_types.h"
+#include "src/hfsm.h"
 
 #include <Arduino.h>
 
 #include "src/states/calibration/calibration.h"
-#include "states/running/running.h"
+#include "src/states/running/running.h"
+
+#include "src/utils/hfsm_types.h"
 #include "src/utils/log_macros.h"
 
 void hfsm() {

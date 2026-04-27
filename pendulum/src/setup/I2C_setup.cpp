@@ -1,4 +1,4 @@
-#include "I2C_setup.h"
+#include "src/setup/I2C_setup.h"
 
 #include <Wire.h>
 

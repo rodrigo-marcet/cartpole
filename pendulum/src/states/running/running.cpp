@@ -1,10 +1,11 @@
-#include "running.h"
+#include "src/states/running/running.h"
 
 #include <Arduino.h>
 #include <Wire.h>
 
-#include "../../utils/as5600.h"
 #include "src/setup/odrive_setup.h"
+
+#include "src/utils/as5600.h"
 #include "src/utils/log_macros.h"
 
 // SequenceState running_sequence() {
