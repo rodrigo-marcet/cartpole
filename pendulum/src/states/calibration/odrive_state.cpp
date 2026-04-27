@@ -162,7 +162,7 @@ SequenceState odrive_calibration() {
 			lower_limit = limits.lower_limit;
 			upper_limit = limits.upper_limit;
 
-			LOOP_LOG("midpoint = %.2d, upper_limit = %.2d, lower_limit = %.2d", midpoint, upper_limit, lower_limit);
+			LOOP_LOG("midpoint = %.2f, upper_limit = %.2f, lower_limit = %.2f", midpoint, upper_limit, lower_limit);
 			current_state = OdriveCalibrationState::ENABLE_POSITION_CONTROL_2;
 		} else
 			current_state = OdriveCalibrationState::ERROR;
@@ -234,7 +234,7 @@ bool move_to_limit(Direction direction) {
 
 bool move_to_position(float position) {
 	odrv0.setTrapezoidalVelLimit(3.0f);
-	odrv0.setTrapezoidalAccelLimits(1.0f, 1.0f);
+	odrv0.setTrapezoidalAccelLimits(10.0f, 10.0f);
 	odrv0.setPosition(position, 0.0f);
 
 	EncoderEstimatesResult res = get_encoder_estimates();
