@@ -7,8 +7,9 @@
 #include "src/states/calibration/odrive_state.h"
 
 #include "src/utils/log_macros.h"
+#include "src/utils/hfsm_types.h"
 
-SequenceState calibration_sequence() {
+SequenceStatus calibration_sequence(CalibrationResult *result) {
 	static CalibrationState current_state = CalibrationState::ODRIVE;
 
 	static unsigned long last_sample_time = 0;
@@ -22,9 +23,13 @@ SequenceState calibration_sequence() {
 
 		last_sample_time = t;
 
-		if (as5600_calibration()) {
+		SequenceStatus status = as5600_calibration();
+
+		if (status == SequenceStatus::DONE) {
 			LOOP_LOG("AS5600 calibration DONE.\n");
 			current_state = CalibrationState::DONE;
+		} else if (status == SequenceStatus::ERROR) {
+			current_state = CalibrationState::ERROR;
 		}
 		break;
 	}
@@ -33,20 +38,22 @@ SequenceState calibration_sequence() {
 			break;
 
 		last_sample_time = t;
-		SequenceState result = odrive_calibration();
-		if (result == SequenceState::DONE) {
+
+		SequenceStatus status = odrive_calibration(&result->odrive_result);
+
+		if (status == SequenceStatus::DONE) {
 			LOOP_LOG("Odrive calibration DONE.\n");
 			current_state = CalibrationState::DONE;
-		} else if (result == SequenceState::ERROR) {
+		} else if (status == SequenceStatus::ERROR) {
 			current_state = CalibrationState::ERROR;
 		}
 		break;
 	}
 	case CalibrationState::DONE:
-		return SequenceState::DONE;
+		return SequenceStatus::DONE;
 
 	case CalibrationState::ERROR:
-		return SequenceState::ERROR;
+		return SequenceStatus::ERROR;
 
 	default:
 		LOOP_ERROR("Calibration sequence got an unknown state.");
@@ -54,5 +61,5 @@ SequenceState calibration_sequence() {
 		break;
 	}
 
-	return SequenceState::RUNNING;
+	return SequenceStatus::RUNNING;
 }

@@ -8,7 +8,7 @@
 #include "src/utils/as5600.h"
 #include "src/utils/log_macros.h"
 
-// SequenceState running_sequence() {
+// SequenceStatus running_sequence() {
 // 	double rads = as5600_read_rads();
 // 	double c = cos(rads);
 
@@ -17,10 +17,10 @@
 // 	Serial.print(c, 6);
 // 	Serial.print("\n");
 
-// 	return SequenceState::RUNNING;
+// 	return SequenceStatus::RUNNING;
 // }
 
-SequenceState running_sequence() {
+SequenceStatus running_sequence() {
 	// // delay(10);
 	// pumpEvents(ESP32Can);
 
@@ -41,5 +41,5 @@ SequenceState running_sequence() {
 	// 	LOOP_LOG("millis: %i", millis());
 	// }
 
-	return SequenceState::RUNNING;
+	return SequenceStatus::RUNNING;
 }

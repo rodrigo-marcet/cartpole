@@ -12,10 +12,11 @@ constexpr float CALIBRATION_VELOCITY = 2.0f;
 constexpr float VELOCITY_THRESHOLD = 0.5f;
 constexpr float STATIC_VELOCITY_DEVIATION = 0.1f;
 constexpr float POSITION_DEVIATION = 0.1f;
-constexpr float SAFETY_TRHESHOLD = 0.03;
+constexpr float SAFETY_THRESHOLD = 0.03;
 
-SequenceState odrive_calibration() {
+SequenceStatus odrive_calibration(ODriveCalibrationResult *result) {
 	static OdriveCalibrationState current_state = OdriveCalibrationState::SAVE_INIT_POS;
+
 	static float init_pos = 0.0f;
 	static float midpoint = 0.0f;
 	static float upper_limit = 0.0f;
@@ -68,7 +69,7 @@ SequenceState odrive_calibration() {
 		odrv0.clearErrors();
 		odrv0.setState(ODriveAxisState::AXIS_STATE_CLOSED_LOOP_CONTROL);
 
-		LOOP_LOG("ERRORs managed succesfully (1)");
+		LOOP_LOG("Errors managed succesfully (1)");
 		current_state = OdriveCalibrationState::WAIT_FOR_CLOSED_LOOP_1;
 		break;
 	}
@@ -141,7 +142,7 @@ SequenceState odrive_calibration() {
 		odrv0.clearErrors();
 		odrv0.setState(ODriveAxisState::AXIS_STATE_CLOSED_LOOP_CONTROL);
 
-		LOOP_LOG("ERRORs managed succesfully (1)");
+		LOOP_LOG("Errors managed succesfully (2)");
 		current_state = OdriveCalibrationState::WAIT_FOR_CLOSED_LOOP_2;
 		break;
 	}
@@ -195,13 +196,18 @@ SequenceState odrive_calibration() {
 
 	case OdriveCalibrationState::DONE: {
 		odrv0.setState(ODriveAxisState::AXIS_STATE_IDLE);
+
+		result->midpoint = midpoint;
+		result->upper_limit = upper_limit;
+		result->lower_limit = lower_limit;
+
 		LOOP_LOG("Succesfully calibrated rail dimensions");
-		return SequenceState::DONE;
+		return SequenceStatus::DONE;
 	}
 
 	case OdriveCalibrationState::ERROR: {
 		odrv0.setState(ODriveAxisState::AXIS_STATE_IDLE);
-		return SequenceState::ERROR;
+		return SequenceStatus::ERROR;
 	}
 
 	default: {
@@ -210,7 +216,7 @@ SequenceState odrive_calibration() {
 		break;
 	}
 	}
-	return SequenceState::RUNNING;
+	return SequenceStatus::RUNNING;
 }
 
 bool move_to_limit(Direction direction) {
@@ -256,7 +262,7 @@ RailLimits calculate_limits(float lower_limit, float upper_limit) {
 
 	result.midpoint = (lower_limit + upper_limit) / 2.0f;
 	float total_length = upper_limit - lower_limit;
-	float safety_factor = total_length * SAFETY_TRHESHOLD;
+	float safety_factor = total_length * SAFETY_THRESHOLD;
 	result.lower_limit = lower_limit + safety_factor;
 	result.upper_limit = upper_limit - safety_factor;
 	result.ok = true;

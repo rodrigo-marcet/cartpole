@@ -1,3 +1,5 @@
 #pragma once
 
-bool as5600_calibration();
+#include "src/utils/hfsm_types.h"
+
+SequenceStatus as5600_calibration();

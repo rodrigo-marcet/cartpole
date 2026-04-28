@@ -25,7 +25,7 @@ enum class OdriveCalibrationState : uint8_t {
 	ERROR = 255,
 };
 
-SequenceState odrive_calibration();
+SequenceStatus odrive_calibration(ODriveCalibrationResult *result);
 
 bool move_to_limit(Direction direction);
 

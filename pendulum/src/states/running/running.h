@@ -2,4 +2,4 @@
 
 #include "src/utils/hfsm_types.h"
 
-SequenceState running_sequence();
+SequenceStatus running_sequence();

@@ -10,20 +10,27 @@
 
 void hfsm() {
 	static HFSMState current_state = HFSMState::CALIBRATION;
+	static CalibrationResult calibration_result;
 
 	switch (current_state) {
-	case HFSMState::CALIBRATION:
-		if (calibration_sequence() == SequenceState::DONE) {
+	case HFSMState::CALIBRATION: {
+		SequenceStatus status = calibration_sequence(&calibration_result);
+
+		if (status == SequenceStatus::DONE) {
 			LOOP_LOG("Calibration completed.");
 			current_state = HFSMState::RUNNING;
 		}
 		break;
+	}
 
-	case HFSMState::RUNNING:
-		if (running_sequence() == SequenceState::DONE) {
+	case HFSMState::RUNNING: {
+		SequenceStatus status = running_sequence();
+
+		if (status == SequenceStatus::DONE) {
 			LOOP_LOG("Running sequence exited.\n");
 		}
 
 		break;
+	}
 	}
 }
