@@ -24,7 +24,7 @@ void hfsm() {
 	}
 
 	case HFSMState::RUNNING: {
-		SequenceStatus status = running_sequence();
+		SequenceStatus status = running_sequence(calibration_result);
 
 		if (status == SequenceStatus::DONE) {
 			LOOP_LOG("Running sequence exited.\n");

@@ -56,6 +56,9 @@ void init_odrive() {
 		pumpEvents(ESP32Can);
 		delay(10);
 
+		odrv0.setTrapezoidalVelLimit(5.0f);
+		odrv0.setTrapezoidalAccelLimits(5.0f, 5.0f);
+		odrv0.setTorque(0.0f);
 		odrv0.setState(ODriveAxisState::AXIS_STATE_CLOSED_LOOP_CONTROL);
 
 		// Pump events for ~150ms to ensure reliable state transition even on busy bus
