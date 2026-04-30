@@ -3,8 +3,10 @@
 #include <Arduino.h>
 #include <Wire.h>
 
-#include "src/utils/odrive_types.h"
+#include "src/states/running/setup_state.h"
+#include "src/states/running/killswitch_limits_state.h"
 
+#include "src/utils/odrive_types.h"
 #include "src/utils/as5600.h"
 #include "src/utils/log_macros.h"
 #include "src/utils/odrive.h"
@@ -39,10 +41,27 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 	const ODriveCalibrationResult &limits = calibration_result.odrive_result;
 	if (fb.pos < limits.lower_limit || fb.pos > limits.upper_limit) {
 		LOOP_LOG("Position %.2f out of bounds [%.2f, %.2f]", fb.pos, limits.lower_limit, limits.upper_limit);
-		current_state = RunningState::KILLSWITCH;
+		current_state = RunningState::KILLSWITCH_LIMITS;
 	}
 
 	switch (current_state) {
+		// case RunningState::SETUP: {
+		// 	if (dt < 10000)
+		// 		break;
+
+		// 	last_sample_time = t;
+
+		// 	SequenceStatus status = setup_sequence();
+
+		// 	if (status == SequenceStatus::DONE) {
+		// 		LOOP_LOG("Odrive calibration DONE.\n");
+		// 		current_state = RunningState::DONE;
+		// 	} else if (status == SequenceStatus::ERROR) {
+		// 		current_state = RunningState::ERROR;
+		// 	}
+		// 	break;
+		// }
+
 	case RunningState::SETUP: {
 		odrv0.setState(ODriveAxisState::AXIS_STATE_CLOSED_LOOP_CONTROL);
 		Heartbeat_msg_t hb;
@@ -81,12 +100,19 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 		}
 		break;
 	}
-	case RunningState::KILLSWITCH:
-		odrv0.setState(ODriveAxisState::AXIS_STATE_IDLE);
+	case RunningState::KILLSWITCH_LIMITS: {
+		const ODriveCalibrationResult &limits = calibration_result.odrive_result;
 
-		LOOP_LOG("KILLSWITCH state reached, killed all power to the motor");
+		SequenceStatus status = killswitch_limits_sequence(fb, limits);
+
+		if (status == SequenceStatus::DONE) {
+			LOOP_LOG("Killswitch limit disengaged\n");
+			current_state = RunningState::SETUP;
+		} else if (status == SequenceStatus::ERROR) {
+			current_state = RunningState::ERROR;
+		}
 		break;
-
+	}
 	case RunningState::DONE:
 		return SequenceStatus::DONE;
 

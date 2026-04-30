@@ -9,9 +9,7 @@
 
 constexpr float CALIBRATION_VELOCITY = 2.0f;
 constexpr float VELOCITY_THRESHOLD = 0.5f;
-constexpr float STATIC_VELOCITY_DEVIATION = 0.1f;
-constexpr float POSITION_DEVIATION = 0.1f;
-constexpr float SAFETY_THRESHOLD = 0.03;
+constexpr float SAFETY_THRESHOLD = 0.05;
 
 SequenceStatus odrive_calibration(ODriveCalibrationResult *result) {
 	static OdriveCalibrationState current_state = OdriveCalibrationState::SAVE_INIT_POS;
@@ -97,7 +95,7 @@ SequenceStatus odrive_calibration(ODriveCalibrationResult *result) {
 		break;
 	}
 	case OdriveCalibrationState::GO_TO_INIT_POS: {
-		if (move_to_position(init_pos)) {
+		if (move_to_position(midpoint, 6.0f, std::make_pair(10.0f, 10.0f))) {
 			LOOP_LOG("Reached init_pos successfully");
 
 			current_state = OdriveCalibrationState::ENABLE_VELOCITY_CONTROL_NEGATIVE;
@@ -186,7 +184,7 @@ SequenceStatus odrive_calibration(ODriveCalibrationResult *result) {
 	}
 
 	case OdriveCalibrationState::GO_TO_MID_POINT: {
-		if (move_to_position(midpoint)) {
+		if (move_to_position(midpoint, 6.0f, std::make_pair(10.0f, 10.0f))) {
 			LOOP_LOG("Reached midpoint successfully");
 
 			current_state = OdriveCalibrationState::DONE;
@@ -234,20 +232,6 @@ bool move_to_limit(Direction direction) {
 
 	if (moving && fabsf(res.vel) < VELOCITY_THRESHOLD) {
 		moving = false;
-		return true;
-	}
-
-	return false;
-}
-
-bool move_to_position(float position) {
-	odrv0.setTrapezoidalVelLimit(6.0f);
-	odrv0.setTrapezoidalAccelLimits(10.0f, 10.0f);
-	odrv0.setPosition(position, 0.0f);
-
-	EncoderEstimatesResult res = get_encoder_estimates();
-	// LOOP_LOG("pos: %.2f, vel: %.2f", res.pos, res.vel);
-	if (fabsf(res.vel) < STATIC_VELOCITY_DEVIATION && fabsf(res.pos - position) <= POSITION_DEVIATION) {
 		return true;
 	}
 

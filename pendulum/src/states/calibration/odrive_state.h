@@ -30,8 +30,6 @@ SequenceStatus odrive_calibration(ODriveCalibrationResult *result);
 
 bool move_to_limit(Direction direction);
 
-bool move_to_position(float position);
-
 struct RailLimits {
 	bool ok = false;
 	float midpoint = 0.0f;

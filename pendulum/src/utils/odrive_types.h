@@ -9,4 +9,10 @@ struct ODriveUserData {
 	bool received_heartbeat = false;
 };
 
+struct EncoderEstimatesResult {
+	bool ok;
+	float pos;
+	float vel;
+};
+
 enum class Direction : int8_t { NEGATIVE = -1, POSITIVE = 1 };
