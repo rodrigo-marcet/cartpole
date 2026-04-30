@@ -1,20 +1,8 @@
 #pragma once
 
-#include <ODriveCAN.h>
-#include <ODriveEsp32Twai.hpp> // provides pumpEvents(), wrap_can_intf(); requires onCanFrame()
+#include "src/utils/odrive_types.h"
 
 #include "src/config.h"
-
-// Per-ODrive user data (same fields as official example)
-struct ODriveUserData {
-	Heartbeat_msg_t last_heartbeat;
-	bool received_heartbeat = false;
-};
-
-// Declare as extern — defined once in odrive_setup.cpp
-extern ODriveCAN odrv0;
-extern ODriveCAN *odrives[];
-extern ODriveUserData odrv0_user_data;
 
 // Called on Heartbeat from ODrive
 void onHeartbeat(Heartbeat_msg_t &msg, void *user_data);

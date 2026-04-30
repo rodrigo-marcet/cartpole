@@ -3,8 +3,7 @@
 #include <Arduino.h>
 #include <Wire.h>
 
-#include "src/setup/odrive_setup.h"
-
+#include "src/utils/odrive_types.h"
 #include "src/utils/log_macros.h"
 #include "src/utils/odrive.h"
 
@@ -21,6 +20,8 @@ SequenceStatus odrive_calibration(ODriveCalibrationResult *result) {
 	static float midpoint = 0.0f;
 	static float upper_limit = 0.0f;
 	static float lower_limit = 0.0f;
+
+	pumpEvents(ESP32Can);
 
 	switch (current_state) {
 	case OdriveCalibrationState::SAVE_INIT_POS: {
@@ -269,34 +270,3 @@ RailLimits calculate_limits(float lower_limit, float upper_limit) {
 
 	return result;
 }
-
-// bool odrive_calibration() {
-// 	// delay(10);
-// 	pumpEvents(ESP32Can);
-
-// 	// Official example motion: sine position with velocity feedforward
-// 	// const float SINE_PERIOD_S = 10.0f;
-// 	// float t = 0.001f * millis();
-// 	// float phase = t * (TWO_PI / SINE_PERIOD_S);
-
-// 	// odrv0.setPosition(sinf(phase),                           // position (turns)
-// 	//                   cosf(phase) * (TWO_PI / SINE_PERIOD_S) // velocity feedforward
-// 	// );
-
-// 	const float SINE_PERIOD_S = 2.0f;
-// 	float t = 0.001f * millis();
-// 	float phase = t * (TWO_PI / SINE_PERIOD_S);
-
-// 	float torque_cmd = -sinf(phase) * 0.;
-// 	odrv0.setTorque(torque_cmd);
-// 	// pumpEvents(ESP32Can);
-
-// 	// Print position & velocity for Serial Plotter
-// 	Get_Encoder_Estimates_msg_t fb;
-// 	if (odrv0.request(fb, 1)) { // 100ms timeout
-// 		// LOOP_LOG("pos: %.2f		vel: %.2f", fb.Pos_Estimate, fb.Vel_Estimate);
-// 		// LOOP_LOG("millis: %i", millis());
-// 	}
-
-// 	return false;
-// }

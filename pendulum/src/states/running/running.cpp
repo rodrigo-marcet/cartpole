@@ -3,7 +3,7 @@
 #include <Arduino.h>
 #include <Wire.h>
 
-#include "src/setup/odrive_setup.h"
+#include "src/utils/odrive_types.h"
 
 #include "src/utils/as5600.h"
 #include "src/utils/log_macros.h"
@@ -27,6 +27,8 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 	static unsigned long last_sample_time = 0;
 	unsigned long t = micros();
 	unsigned long dt = t - last_sample_time;
+
+	pumpEvents(ESP32Can);
 
 	EncoderEstimatesResult fb = get_encoder_estimates();
 	if (!fb.ok) {
@@ -104,7 +106,6 @@ SequenceStatus running_pos(const CalibrationResult &calibration_result, const En
 
 	delay(10);
 
-	pumpEvents(ESP32Can);
 	const float MARGIN = 0.1f;
 	const float upper = calibration_result.odrive_result.upper_limit - MARGIN;
 	const float lower = calibration_result.odrive_result.lower_limit + MARGIN;
@@ -128,8 +129,6 @@ SequenceStatus running_pos(const CalibrationResult &calibration_result, const En
 SequenceStatus running_torque(const CalibrationResult &calibration_result, const EncoderEstimatesResult &fb) {
 
 	delay(10);
-
-	pumpEvents(ESP32Can);
 
 	const float SINE_PERIOD_S = 1.0f;
 	static unsigned long start_time = 0;

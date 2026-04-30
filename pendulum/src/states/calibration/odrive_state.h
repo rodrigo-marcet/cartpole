@@ -2,6 +2,7 @@
 
 #include "src/utils/types.h"
 #include "src/utils/hfsm_types.h"
+#include "src/utils/odrive_types.h"
 
 enum class OdriveCalibrationState : uint8_t {
 	SAVE_INIT_POS,
