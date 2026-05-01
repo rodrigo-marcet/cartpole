@@ -4,6 +4,7 @@
 #include <Wire.h>
 
 #include "src/states/running/setup_state.h"
+#include "src/states/running/main_sequence.h"
 
 #include "src/utils/odrive_types.h"
 #include "src/utils/as5600.h"
@@ -57,7 +58,7 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 
 		if (status == SequenceStatus::DONE) {
 			killswitch_active = false;
-			current_state = RunningState::RUNNING;
+			current_state = RunningState::MAIN_SEQUENCE;
 		} else if (status == SequenceStatus::ERROR) {
 			LOOP_LOG("[RUNNING] [SETUP] we got an error, diverging to error state");
 			current_state = RunningState::ERROR;
@@ -65,22 +66,19 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 		break;
 	}
 
-	case RunningState::RUNNING: {
+	case RunningState::MAIN_SEQUENCE: {
 		if (dt < 10000)
 			break;
 
 		last_sample_time = t;
-		odrv0.setVelocity(1.0f);
 
-		// SequenceStatus status = running_pos(calibration_result, fb);
-		// LOOP_LOG("lower: %.2f, upper: %.2f", limits.lower_limit, limits.upper_limit);
+		SequenceStatus status = main_sequence(fb, limits);
 
-		// if (status == SequenceStatus::DONE) {
-		// 	LOOP_LOG("Running done\n");
-		// 	current_state = RunningState::DONE;
-		// } else if (status == SequenceStatus::ERROR) {
-		// 	current_state = RunningState::ERROR;
-		// }
+		if (status == SequenceStatus::DONE) {
+			current_state = RunningState::DONE;
+		} else if (status == SequenceStatus::ERROR) {
+			current_state = RunningState::ERROR;
+		}
 		break;
 	}
 	case RunningState::KILLSWITCH: {
@@ -92,6 +90,7 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 		break;
 	}
 	case RunningState::DONE:
+		current_state = RunningState::SETUP;
 		return SequenceStatus::DONE;
 
 	case RunningState::ERROR: {
@@ -111,95 +110,3 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 
 	return SequenceStatus::RUNNING;
 }
-
-SequenceStatus running_pos(const CalibrationResult &calibration_result, const EncoderEstimatesResult &fb) {
-
-	delay(10);
-
-	const float MARGIN = 0.1f;
-	const float upper = calibration_result.odrive_result.upper_limit - MARGIN;
-	const float lower = calibration_result.odrive_result.lower_limit + MARGIN;
-
-	const float center = (upper + lower) / 2.0f;
-	const float amplitude = (upper - lower) / 2.0f;
-
-	const float SINE_PERIOD_S = 1.0f;
-	float t = 0.001f * millis();
-	float phase = t * (TWO_PI / SINE_PERIOD_S);
-
-	odrv0.setTrapezoidalVelLimit(60.0f);
-	odrv0.setTrapezoidalAccelLimits(250.0f, 250.0f);
-	odrv0.setPosition(center + amplitude * sinf(phase), amplitude * cosf(phase) * (TWO_PI / SINE_PERIOD_S));
-
-	LOOP_LOG("pos: %.2f, vel: %.2f", fb.pos, fb.vel);
-
-	return SequenceStatus::RUNNING;
-}
-
-SequenceStatus running_torque(const CalibrationResult &calibration_result, const EncoderEstimatesResult &fb) {
-
-	delay(10);
-
-	const float SINE_PERIOD_S = 1.0f;
-	static unsigned long start_time = 0;
-	if (start_time == 0)
-		start_time = millis();
-
-	float t = 0.001f * (millis() - start_time);
-	float phase = t * (TWO_PI / SINE_PERIOD_S);
-
-	const float MAX_TORQUE = 0.04f;
-	float torque = MAX_TORQUE * sinf(phase);
-
-	odrv0.setTorque(torque);
-
-	LOOP_LOG("pos: %.2f, vel: %.2f, torque: %.2f", fb.pos, fb.vel, torque);
-
-	return SequenceStatus::RUNNING;
-}
-// SequenceStatus running_sequence(const CalibrationResult& calibration_result) {
-
-// 	delay(10);
-
-// 	const float center    = (calibration_result.odrive_result.upper_limit +
-// 							calibration_result.odrive_result.lower_limit) / 2.0f;
-// 	const float amplitude = (calibration_result.odrive_result.upper_limit -
-// 							calibration_result.odrive_result.lower_limit) / 2.0f;
-
-// 	const float SINE_PERIOD_S = 2.0f;
-// 	float t     = 0.001f * millis();
-// 	float phase = t * (TWO_PI / SINE_PERIOD_S);
-
-// 	odrv0.setPosition(
-// 		center + amplitude * sinf(phase),
-// 		amplitude * cosf(phase) * (TWO_PI / SINE_PERIOD_S)
-// 	);
-
-// 	Get_Encoder_Estimates_msg_t fb;
-// 	if (odrv0.request(fb, 10)) { // 100ms timeout
-// 		LOOP_LOG("pos: %.2f", fb.Pos_Estimate);
-// 		LOOP_LOG("vel: %.2f", fb.Vel_Estimate);
-// 		LOOP_LOG("millis: %i", millis());
-// 	}
-// 	// // delay(10);
-// 	// pumpEvents(ESP32Can);
-
-// 	// // Official example motion: sine position with velocity feedforward
-// 	// const float SINE_PERIOD_S = 2.0f;
-// 	// float t = 0.001f * millis();
-// 	// float phase = t * (TWO_PI / SINE_PERIOD_S);
-
-// 	// odrv0.setPosition(sinf(phase),                           // position (turns)
-// 	//                   cosf(phase) * (TWO_PI / SINE_PERIOD_S) // velocity feedforward
-// 	// );
-
-// 	// // Print position & velocity for Serial Plotter
-// 	// Get_Encoder_Estimates_msg_t fb;
-// 	// if (odrv0.request(fb, 10)) { // 100ms timeout
-// 	// 	LOOP_LOG("pos: %.2f", fb.Pos_Estimate);
-// 	// 	LOOP_LOG("vel: %.2f", fb.Vel_Estimate);
-// 	// 	LOOP_LOG("millis: %i", millis());
-// 	// }
-
-// 	return SequenceStatus::RUNNING;
-// }
