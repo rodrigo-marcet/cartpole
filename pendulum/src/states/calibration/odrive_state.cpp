@@ -14,10 +14,12 @@ constexpr float SAFETY_THRESHOLD = 0.05;
 SequenceStatus odrive_calibration(ODriveCalibrationResult *result) {
 	static OdriveCalibrationState current_state = OdriveCalibrationState::SAVE_INIT_POS;
 
+	static float closed_loop_timeout = 0.0f;
+
 	static float init_pos = 0.0f;
 	static float midpoint = 0.0f;
-	static float upper_limit = 0.0f;
-	static float lower_limit = 0.0f;
+	static float physical_upper_limit = 0.0f;
+	static float physical_lower_limit = 0.0f;
 
 	pumpEvents(ESP32Can);
 
@@ -56,8 +58,8 @@ SequenceStatus odrive_calibration(ODriveCalibrationResult *result) {
 	case OdriveCalibrationState::SAVE_UPPER_LIMIT: {
 		EncoderEstimatesResult res = get_encoder_estimates();
 		if (res.ok) {
-			upper_limit = res.pos;
-			LOOP_LOG("upper_limit = %.2f", upper_limit);
+			physical_upper_limit = res.pos;
+			LOOP_LOG("physical_upper_limit = %.2f", physical_upper_limit);
 
 			current_state = OdriveCalibrationState::MANAGE_ERRORS_1;
 		}
@@ -66,15 +68,23 @@ SequenceStatus odrive_calibration(ODriveCalibrationResult *result) {
 	}
 	case OdriveCalibrationState::MANAGE_ERRORS_1: {
 		odrv0.clearErrors();
+		pumpEvents(ESP32Can);
+		delay(10);
 		odrv0.setState(ODriveAxisState::AXIS_STATE_CLOSED_LOOP_CONTROL);
-
+		closed_loop_timeout = millis();
 		LOOP_LOG("Errors managed succesfully (1)");
 		current_state = OdriveCalibrationState::WAIT_FOR_CLOSED_LOOP_1;
 		break;
 	}
 	case OdriveCalibrationState::WAIT_FOR_CLOSED_LOOP_1: {
+		if (millis() - closed_loop_timeout > 100) {
+			LOOP_ERROR("Closed loop control couldn't be enabled (1)");
+			current_state = OdriveCalibrationState::ERROR;
+			break;
+		}
+
 		Heartbeat_msg_t hb;
-		if (odrv0.request(hb, 1)) {
+		if (odrv0.request(hb, 10)) {
 			if (hb.Axis_State == ODriveAxisState::AXIS_STATE_CLOSED_LOOP_CONTROL) {
 				LOOP_LOG("Closed loop confirmed (1)");
 				current_state = OdriveCalibrationState::ENABLE_POSITION_CONTROL_1;
@@ -129,8 +139,8 @@ SequenceStatus odrive_calibration(ODriveCalibrationResult *result) {
 	case OdriveCalibrationState::SAVE_LOWER_LIMIT: {
 		EncoderEstimatesResult res = get_encoder_estimates();
 		if (res.ok) {
-			lower_limit = res.pos;
-			LOOP_LOG("lower_limit = %.2f", lower_limit);
+			physical_lower_limit = res.pos;
+			LOOP_LOG("physical_lower_limit = %.2f", physical_lower_limit);
 
 			current_state = OdriveCalibrationState::MANAGE_ERRORS_2;
 		}
@@ -139,15 +149,25 @@ SequenceStatus odrive_calibration(ODriveCalibrationResult *result) {
 	}
 	case OdriveCalibrationState::MANAGE_ERRORS_2: {
 		odrv0.clearErrors();
+		pumpEvents(ESP32Can);
+		delay(10);
 		odrv0.setState(ODriveAxisState::AXIS_STATE_CLOSED_LOOP_CONTROL);
+		closed_loop_timeout = millis();
 
 		LOOP_LOG("Errors managed succesfully (2)");
 		current_state = OdriveCalibrationState::WAIT_FOR_CLOSED_LOOP_2;
 		break;
 	}
 	case OdriveCalibrationState::WAIT_FOR_CLOSED_LOOP_2: {
+		if (millis() - closed_loop_timeout > 100) {
+			LOOP_ERROR("Closed loop control couldn't be enabled (2)");
+			current_state = OdriveCalibrationState::ERROR;
+			break;
+		}
+
 		Heartbeat_msg_t hb;
-		if (odrv0.request(hb, 1)) {
+
+		if (odrv0.request(hb, 10)) {
 			if (hb.Axis_State == ODriveAxisState::AXIS_STATE_CLOSED_LOOP_CONTROL) {
 				LOOP_LOG("Closed loop confirmed (2)");
 				current_state = OdriveCalibrationState::CALCULATE_VALUES;
@@ -157,13 +177,18 @@ SequenceStatus odrive_calibration(ODriveCalibrationResult *result) {
 	}
 
 	case OdriveCalibrationState::CALCULATE_VALUES: {
-		RailLimits limits = calculate_limits(lower_limit, upper_limit);
+		RailLimits limits = calculate_limits(physical_lower_limit, physical_upper_limit);
 		if (limits.ok) {
 			midpoint = limits.midpoint;
-			lower_limit = limits.lower_limit;
-			upper_limit = limits.upper_limit;
 
-			LOOP_LOG("midpoint = %.2f, upper_limit = %.2f, lower_limit = %.2f", midpoint, upper_limit, lower_limit);
+			result->midpoint = midpoint;
+			result->lower_limit = limits.lower_limit;
+			result->upper_limit = limits.upper_limit;
+			result->physical_lower_limit = physical_lower_limit;
+			result->physical_upper_limit = physical_upper_limit;
+
+			LOOP_LOG("midpoint = %.2f, upper_limit = %.2f, lower_limit = %.2f", midpoint, limits.upper_limit,
+			         limits.lower_limit);
 			current_state = OdriveCalibrationState::ENABLE_POSITION_CONTROL_2;
 		} else
 			current_state = OdriveCalibrationState::ERROR;
@@ -195,10 +220,6 @@ SequenceStatus odrive_calibration(ODriveCalibrationResult *result) {
 
 	case OdriveCalibrationState::DONE: {
 		odrv0.setState(ODriveAxisState::AXIS_STATE_IDLE);
-
-		result->midpoint = midpoint;
-		result->upper_limit = upper_limit;
-		result->lower_limit = lower_limit;
 
 		LOOP_LOG("Succesfully calibrated rail dimensions");
 		return SequenceStatus::DONE;

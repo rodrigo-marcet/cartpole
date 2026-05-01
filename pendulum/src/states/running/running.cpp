@@ -4,7 +4,6 @@
 #include <Wire.h>
 
 #include "src/states/running/setup_state.h"
-#include "src/states/running/killswitch_limits_state.h"
 
 #include "src/utils/odrive_types.h"
 #include "src/utils/as5600.h"
@@ -30,6 +29,8 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 	unsigned long t = micros();
 	unsigned long dt = t - last_sample_time;
 
+	const ODriveCalibrationResult &limits = calibration_result.odrive_result;
+
 	pumpEvents(ESP32Can);
 
 	EncoderEstimatesResult fb = get_encoder_estimates();
@@ -38,48 +39,29 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 		current_state = RunningState::ERROR;
 	}
 
-	const ODriveCalibrationResult &limits = calibration_result.odrive_result;
-	if (fb.pos < limits.lower_limit || fb.pos > limits.upper_limit) {
-		LOOP_LOG("Position %.2f out of bounds [%.2f, %.2f]", fb.pos, limits.lower_limit, limits.upper_limit);
-		current_state = RunningState::KILLSWITCH_LIMITS;
+	static bool killswitch_active = false;
+
+	if (!killswitch_active && (fb.pos < limits.lower_limit || fb.pos > limits.upper_limit)) {
+		killswitch_active = true;
+		current_state = RunningState::KILLSWITCH;
 	}
 
 	switch (current_state) {
-		// case RunningState::SETUP: {
-		// 	if (dt < 10000)
-		// 		break;
-
-		// 	last_sample_time = t;
-
-		// 	SequenceStatus status = setup_sequence();
-
-		// 	if (status == SequenceStatus::DONE) {
-		// 		LOOP_LOG("Odrive calibration DONE.\n");
-		// 		current_state = RunningState::DONE;
-		// 	} else if (status == SequenceStatus::ERROR) {
-		// 		current_state = RunningState::ERROR;
-		// 	}
-		// 	break;
-		// }
-
 	case RunningState::SETUP: {
-		odrv0.setState(ODriveAxisState::AXIS_STATE_CLOSED_LOOP_CONTROL);
-		Heartbeat_msg_t hb;
-		if (odrv0.request(hb, 1)) {
-			if (hb.Axis_State == ODriveAxisState::AXIS_STATE_CLOSED_LOOP_CONTROL) {
-				LOOP_LOG("Closed loop confirmed running");
-			}
-		}
-		if (!odrv0.setControllerMode(ODriveControlMode::CONTROL_MODE_POSITION_CONTROL,
-		                             ODriveInputMode::INPUT_MODE_TRAP_TRAJ)) {
-			LOOP_ERROR("Switching to torque control on RUNNING was not possible");
-			current_state = RunningState::ERROR;
-		} else {
-			LOOP_LOG("Position control (2) set succesfully");
-		}
+		if (dt < 10000)
+			break;
 
-		LOOP_LOG("Motor now in loop control");
-		current_state = RunningState::RUNNING;
+		last_sample_time = t;
+
+		SequenceStatus status = setup_sequence(fb, limits);
+
+		if (status == SequenceStatus::DONE) {
+			killswitch_active = false;
+			current_state = RunningState::RUNNING;
+		} else if (status == SequenceStatus::ERROR) {
+			LOOP_LOG("[RUNNING] [SETUP] we got an error, diverging to error state");
+			current_state = RunningState::ERROR;
+		}
 		break;
 	}
 
@@ -88,36 +70,38 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 			break;
 
 		last_sample_time = t;
+		odrv0.setVelocity(1.0f);
 
-		SequenceStatus status = running_pos(calibration_result, fb);
-		LOOP_LOG("lower: %.2f, upper: %.2f", limits.lower_limit, limits.upper_limit);
+		// SequenceStatus status = running_pos(calibration_result, fb);
+		// LOOP_LOG("lower: %.2f, upper: %.2f", limits.lower_limit, limits.upper_limit);
 
-		if (status == SequenceStatus::DONE) {
-			LOOP_LOG("Running done\n");
-			current_state = RunningState::DONE;
-		} else if (status == SequenceStatus::ERROR) {
-			current_state = RunningState::ERROR;
-		}
+		// if (status == SequenceStatus::DONE) {
+		// 	LOOP_LOG("Running done\n");
+		// 	current_state = RunningState::DONE;
+		// } else if (status == SequenceStatus::ERROR) {
+		// 	current_state = RunningState::ERROR;
+		// }
 		break;
 	}
-	case RunningState::KILLSWITCH_LIMITS: {
-		const ODriveCalibrationResult &limits = calibration_result.odrive_result;
+	case RunningState::KILLSWITCH: {
+		odrv0.setTorque(0.0f);
+		odrv0.setVelocity(0.0f);
+		odrv0.setState(ODriveAxisState::AXIS_STATE_IDLE);
 
-		SequenceStatus status = killswitch_limits_sequence(fb, limits);
-
-		if (status == SequenceStatus::DONE) {
-			LOOP_LOG("Killswitch limit disengaged\n");
-			current_state = RunningState::SETUP;
-		} else if (status == SequenceStatus::ERROR) {
-			current_state = RunningState::ERROR;
-		}
+		current_state = RunningState::SETUP;
 		break;
 	}
 	case RunningState::DONE:
 		return SequenceStatus::DONE;
 
-	case RunningState::ERROR:
-		return SequenceStatus::ERROR;
+	case RunningState::ERROR: {
+		odrv0.clearErrors();
+		pumpEvents(ESP32Can);
+		delay(10);
+		current_state = RunningState::SETUP;
+		break;
+		// return SequenceStatus::ERROR;
+	}
 
 	default:
 		LOOP_ERROR("Running sequence got an unknown state.");

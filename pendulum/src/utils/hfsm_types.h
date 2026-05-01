@@ -8,6 +8,8 @@ struct ODriveCalibrationResult {
 	float midpoint = 0;
 	float upper_limit = 0;
 	float lower_limit = 0;
+	float physical_upper_limit = 0;
+	float physical_lower_limit = 0;
 };
 
 struct CalibrationResult {
