@@ -9,9 +9,6 @@ SequenceStatus setup_sequence(const EncoderEstimatesResult &fb, const ODriveCali
 
 	static unsigned long closed_loop_timeout = 0;
 
-	static float closest_physical_limit = 0.0f;
-	static float closest_limit = 0.0f;
-
 	pumpEvents(ESP32Can);
 
 	switch (current_state) {

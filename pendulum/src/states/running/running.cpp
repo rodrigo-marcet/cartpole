@@ -27,10 +27,6 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 	static RunningState current_state = RunningState::SETUP;
 	static MainSequenceState main_sequence_state = MainSequenceState::ENABLE_CONTROL_LOOP_CONTROL;
 
-	static unsigned long last_sample_time = 0;
-	unsigned long t = micros();
-	unsigned long dt = t - last_sample_time;
-
 	const ODriveCalibrationResult &limits = calibration_result.odrive_result;
 
 	pumpEvents(ESP32Can);
@@ -50,11 +46,6 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 
 	switch (current_state) {
 	case RunningState::SETUP: {
-		if (dt < 10000)
-			break;
-
-		last_sample_time = t;
-
 		SequenceStatus status = setup_sequence(fb, limits);
 
 		if (status == SequenceStatus::DONE) {
@@ -68,11 +59,6 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 	}
 
 	case RunningState::MAIN_SEQUENCE: {
-		if (dt < 10000)
-			break;
-
-		last_sample_time = t;
-
 		SequenceStatus status = main_sequence(main_sequence_state, fb, limits);
 
 		if (status == SequenceStatus::DONE) {

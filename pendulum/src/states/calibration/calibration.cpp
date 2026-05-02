@@ -12,17 +12,8 @@
 SequenceStatus calibration_sequence(CalibrationResult *result) {
 	static CalibrationState current_state = CalibrationState::ODRIVE;
 
-	static unsigned long last_sample_time = 0;
-	unsigned long t = micros();
-	unsigned long dt = t - last_sample_time;
-
 	switch (current_state) {
 	case CalibrationState::AS5600: {
-		if (dt < 10000)
-			break;
-
-		last_sample_time = t;
-
 		SequenceStatus status = as5600_calibration(&result->inner_encoder_result);
 
 		if (status == SequenceStatus::DONE) {
@@ -34,11 +25,6 @@ SequenceStatus calibration_sequence(CalibrationResult *result) {
 		break;
 	}
 	case CalibrationState::ODRIVE: {
-		if (dt < 10000)
-			break;
-
-		last_sample_time = t;
-
 		SequenceStatus status = odrive_calibration(&result->odrive_result);
 
 		if (status == SequenceStatus::DONE) {

@@ -6,12 +6,17 @@
 
 SequenceStatus main_sequence(MainSequenceState &current_state, const EncoderEstimatesResult &fb,
                              const ODriveCalibrationResult &limits) {
-	// static MainSequenceState current_state = MainSequenceState::ENABLE_CONTROL_LOOP_CONTROL;
+
+	static unsigned long last_sample_time = 0;
+	unsigned long t = micros();
+	unsigned long dt = t - last_sample_time;
+
+	if (dt < 10'000)
+		return SequenceStatus::RUNNING;
+
+	last_sample_time = t;
 
 	static unsigned long closed_loop_timeout = 0;
-
-	static float closest_physical_limit = 0.0f;
-	static float closest_limit = 0.0f;
 
 	pumpEvents(ESP32Can);
 
