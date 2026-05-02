@@ -18,12 +18,12 @@ SequenceStatus calibration_sequence(CalibrationResult *result) {
 
 	switch (current_state) {
 	case CalibrationState::AS5600: {
-		if (dt < 1000)
+		if (dt < 10000)
 			break;
 
 		last_sample_time = t;
 
-		SequenceStatus status = as5600_calibration();
+		SequenceStatus status = as5600_calibration(&result->inner_encoder_result);
 
 		if (status == SequenceStatus::DONE) {
 			LOOP_LOG("AS5600 calibration DONE.\n");

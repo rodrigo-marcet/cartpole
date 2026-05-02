@@ -4,52 +4,63 @@
 #include <Wire.h>
 
 #include "src/utils/as5600.h"
+#include "src/utils/log_macros.h"
 
-SequenceStatus as5600_calibration() {
-	static double rads = 0;
-	static double rads_p = 0;
-	static double avg_position = 0;
-	static int n = 0;
-	static double c = 0, c_p = 0;
-	static double s = 0, s_p = 0;
-	static double w_filtered = 0;
-	static double epsilon = 4;
+constexpr double STABILITY_DURATION_US = 5'000'000.0;
+constexpr double LOW_PASS_ALPHA = 0.5;
+constexpr double VELOCITY_THRESHOLD = 0.4; // rad/s
 
-	static unsigned long last = micros();
-	static unsigned long stable_since = micros();
+SequenceStatus as5600_calibration(AS5600CalibrationResult *result) {
+	static double angle_rad = 0;
+	static double angle_rad_prev = 0;
+	static double cos_angle = 0, cos_angle_prev = 0;
+	static double sin_angle = 0, sin_angle_prev = 0;
+	static double angular_vel_filtered = 0;
 
-	unsigned long now = micros();
-	unsigned long dt = now - last;
-	last = now;
+	static double avg_raw_angle = 0;
+	static int avg_sample_count = 0;
 
-	if (dt == 0)
+	static unsigned long last_us = micros();
+	static unsigned long stable_since_us = micros();
+
+	unsigned long now_us = micros();
+	unsigned long dt_us = now_us - last_us;
+	last_us = now_us;
+
+	if (dt_us == 0)
 		return SequenceStatus::RUNNING;
 
 	int raw_angle = as5600_read_raw();
-	rads_p = rads;
-	rads = raw_angle * (2.0f * PI / 4096.0f);
-	c_p = c;
-	c = cos(rads);
-	s_p = s;
-	s = sin(rads);
+	angle_rad_prev = angle_rad;
+	angle_rad = raw_angle * (2.0 * PI / 4096.0);
 
-	double dts = dt / 1000000.0;
+	cos_angle_prev = cos_angle;
+	sin_angle_prev = sin_angle;
+	cos_angle = cos(angle_rad);
+	sin_angle = sin(angle_rad);
 
-	double w = ((s - s_p) * c - (c - c_p) * s) / dts;
+	double dt_s = dt_us / 1'000'000.0;
+	double angular_vel = ((sin_angle - sin_angle_prev) * cos_angle - (cos_angle - cos_angle_prev) * sin_angle) / dt_s;
 
-	double alpha = 0.5;
-	w_filtered = alpha * w + (1 - alpha) * w_filtered;
+	// angular_vel_filtered = LOW_PASS_ALPHA * angular_vel
+	//                      + (1.0 - LOW_PASS_ALPHA) * angular_vel_filtered;
 
-	if (now - stable_since >= 5000000 && abs(w_filtered) < epsilon) {
-		set_as5600_offset(int(avg_position));
-		return SequenceStatus::DONE;
-	} else if (abs(w_filtered) >= epsilon) {
-		stable_since = now;
-		n = 0;
-		avg_position = 0;
+	bool is_stable = abs(angular_vel) < VELOCITY_THRESHOLD;
+
+	if (!is_stable) {
+		stable_since_us = now_us;
+		avg_sample_count = 0;
+		avg_raw_angle = 0;
 	} else {
-		n++;
-		avg_position = avg_position + (raw_angle - avg_position) / n;
+		avg_sample_count++;
+		avg_raw_angle += (raw_angle - avg_raw_angle) / avg_sample_count;
+
+		if (now_us - stable_since_us >= STABILITY_DURATION_US) {
+			int offset = static_cast<int>(avg_raw_angle);
+			result->raw_offset = offset;
+			LOOP_LOG("AS5600 offset set to %d", offset);
+			return SequenceStatus::DONE;
+		}
 	}
 
 	return SequenceStatus::RUNNING;
