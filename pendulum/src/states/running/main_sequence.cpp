@@ -4,8 +4,9 @@
 #include "src/utils/odrive_types.h"
 #include "src/utils/log_macros.h"
 
-SequenceStatus main_sequence(const EncoderEstimatesResult &fb, const ODriveCalibrationResult &limits) {
-	static MainSequenceState current_state = MainSequenceState::ENABLE_CONTROL_LOOP_CONTROL;
+SequenceStatus main_sequence(MainSequenceState &current_state, const EncoderEstimatesResult &fb,
+                             const ODriveCalibrationResult &limits) {
+	// static MainSequenceState current_state = MainSequenceState::ENABLE_CONTROL_LOOP_CONTROL;
 
 	static unsigned long closed_loop_timeout = 0;
 

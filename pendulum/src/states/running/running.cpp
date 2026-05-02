@@ -25,6 +25,7 @@
 
 SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 	static RunningState current_state = RunningState::SETUP;
+	static MainSequenceState main_sequence_state = MainSequenceState::ENABLE_CONTROL_LOOP_CONTROL;
 
 	static unsigned long last_sample_time = 0;
 	unsigned long t = micros();
@@ -72,7 +73,7 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 
 		last_sample_time = t;
 
-		SequenceStatus status = main_sequence(fb, limits);
+		SequenceStatus status = main_sequence(main_sequence_state, fb, limits);
 
 		if (status == SequenceStatus::DONE) {
 			current_state = RunningState::DONE;
@@ -86,6 +87,7 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 		odrv0.setVelocity(0.0f);
 		odrv0.setState(ODriveAxisState::AXIS_STATE_IDLE);
 
+		main_sequence_state = MainSequenceState::ENABLE_CONTROL_LOOP_CONTROL;
 		current_state = RunningState::SETUP;
 		break;
 	}
@@ -97,7 +99,7 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 		odrv0.clearErrors();
 		pumpEvents(ESP32Can);
 		delay(10);
-		current_state = RunningState::SETUP;
+		current_state = RunningState::KILLSWITCH;
 		break;
 		// return SequenceStatus::ERROR;
 	}

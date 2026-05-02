@@ -14,7 +14,8 @@ enum class MainSequenceState : uint8_t {
 	ERROR = 255,
 };
 
-SequenceStatus main_sequence(const EncoderEstimatesResult &fb, const ODriveCalibrationResult &limits);
+SequenceStatus main_sequence(MainSequenceState &current_state, const EncoderEstimatesResult &fb,
+                             const ODriveCalibrationResult &limits);
 
 SequenceStatus running_sequence(const ODriveCalibrationResult &calibration_result);
 
