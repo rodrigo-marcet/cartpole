@@ -105,7 +105,7 @@ SequenceStatus odrive_calibration(ODriveCalibrationResult *result) {
 		break;
 	}
 	case OdriveCalibrationState::GO_TO_INIT_POS: {
-		if (move_to_position(midpoint, 6.0f, std::make_pair(10.0f, 10.0f))) {
+		if (move_to_position(init_pos, 6.0f, std::make_pair(10.0f, 10.0f))) {
 			LOOP_LOG("Reached init_pos successfully");
 
 			current_state = OdriveCalibrationState::ENABLE_VELOCITY_CONTROL_NEGATIVE;
