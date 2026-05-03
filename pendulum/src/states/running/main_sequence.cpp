@@ -52,8 +52,8 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const Calibration
 		break;
 	}
 	case MainSequenceState::ENABLE_POSITION_CONTROL: {
-		if (!odrv0.setControllerMode(ODriveControlMode::CONTROL_MODE_VELOCITY_CONTROL,
-		                             ODriveInputMode::INPUT_MODE_PASSTHROUGH)) {
+		if (!odrv0.setControllerMode(ODriveControlMode::CONTROL_MODE_POSITION_CONTROL,
+		                             ODriveInputMode::INPUT_MODE_TRAP_TRAJ)) {
 			LOOP_ERROR("[RUNNING] [MAIN] Switching to position control was not possible");
 			current_state = MainSequenceState::ERROR;
 		} else {
@@ -65,6 +65,14 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const Calibration
 	case MainSequenceState::SINUSOIDAL_POS: {
 
 		SequenceStatus status = running_pos(calibration_result, fb);
+		// const float MARGIN = 1.0f;
+
+		// const float upper = calibration_result.odrive_result.upper_limit - MARGIN;
+		// const float mid = calibration_result.odrive_result.midpoint;
+		// LOOP_LOG("pos: %.2f, upper: %.2f, midpoint: %.2f",fb.pos, upper, mid);
+		// if (move_to_position(upper, 5.0, std::make_pair(250.0f, 250.0f))){
+		// 	current_state = MainSequenceState::SINUSOIDAL_POS_2;
+		// }
 
 		break;
 	}
@@ -92,20 +100,20 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const Calibration
 }
 
 SequenceStatus running_pos(const CalibrationResult &calibration_result, const EncoderEstimatesResult &fb) {
-	const float MARGIN = 5.0f;
+	const float MARGIN = 0.1f;
 	const float upper = calibration_result.odrive_result.upper_limit - MARGIN;
 	const float lower = calibration_result.odrive_result.lower_limit + MARGIN;
 
 	const float center = (upper + lower) / 2.0f;
 	const float amplitude = (upper - lower) / 2.0f;
 
-	const float SINE_PERIOD_S = 10.0f;
+	const float SINE_PERIOD_S = 1.0f;
 	float t = 0.001f * millis();
 	float phase = t * (TWO_PI / SINE_PERIOD_S);
 
 	odrv0.setTrapezoidalVelLimit(60.0f);
 	odrv0.setTrapezoidalAccelLimits(250.0f, 250.0f);
-	odrv0.setPosition(center + amplitude * sinf(phase), amplitude * cosf(phase) * (TWO_PI / SINE_PERIOD_S));
+	odrv0.setPosition(center + amplitude * sinf(phase), 0.0f);
 
 	double as5600_rads = as5600_read_rads(calibration_result.inner_encoder_result.raw_offset);
 	int raw_angle = as5600_read_raw();
