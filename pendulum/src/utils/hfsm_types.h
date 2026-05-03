@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include <cstdint>
 
 enum class SequenceStatus : uint8_t { RUNNING, DONE = 254, ERROR = 255 };
 
@@ -12,7 +13,7 @@ struct ODriveCalibrationResult {
 	float physical_lower_limit = 0;
 };
 struct AS5600CalibrationResult {
-	int raw_offset = 0;
+	int16_t raw_offset = 0;
 };
 
 struct CalibrationResult {

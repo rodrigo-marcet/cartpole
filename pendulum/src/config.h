@@ -11,5 +11,5 @@
 #define CAN_TX_PIN 4
 #define CAN_RX_PIN 5
 
-#define AS5600_ADDR 0x36
+#define INNER_AS5600_ADDR 0x36
 #define ODRV0_NODE_ID 0

@@ -42,6 +42,10 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 
 	if (!killswitch_active && (fb.pos < limits.lower_limit || fb.pos > limits.upper_limit)) {
 		killswitch_active = true;
+
+		LOOP_ERROR("[RUNNING] [KILLSWITCH] killswitch engaged, pos: %.3f, lower: %.3f, upper: %.3f", fb.pos,
+		           limits.lower_limit, limits.upper_limit);
+
 		current_state = RunningState::KILLSWITCH;
 	}
 
@@ -60,7 +64,7 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 	}
 
 	case RunningState::MAIN_SEQUENCE: {
-		SequenceStatus status = main_sequence(main_sequence_state, fb, limits);
+		SequenceStatus status = main_sequence(main_sequence_state, calibration_result, fb);
 
 		if (status == SequenceStatus::DONE) {
 			current_state = RunningState::DONE;

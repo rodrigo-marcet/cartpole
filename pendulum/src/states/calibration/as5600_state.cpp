@@ -2,11 +2,12 @@
 
 #include <Arduino.h>
 #include <Wire.h>
+#include <cstdint>
 
 #include "src/utils/as5600.h"
 #include "src/utils/log_macros.h"
 
-constexpr double STABILITY_DURATION_US = 10000000.0;
+constexpr double STABILITY_DURATION_US = 5'000'000.0;
 constexpr double LOW_PASS_ALPHA = 0.5;
 constexpr double VELOCITY_THRESHOLD = 0.4; // rad/s
 
@@ -33,7 +34,12 @@ SequenceStatus as5600_calibration(AS5600CalibrationResult *result) {
 
 	static unsigned long stable_since_us = 0;
 
-	int raw_angle = as5600_read_raw();
+	int16_t raw_angle = as5600_read_raw();
+	if (raw_angle == -1) {
+		LOOP_ERROR("[CALIBRATION] [AS5600] raw_angle read failed");
+		return SequenceStatus::ERROR;
+	}
+
 	angle_rad_prev = angle_rad;
 	angle_rad = raw_angle * (2.0 * PI / 4096.0);
 
@@ -42,14 +48,12 @@ SequenceStatus as5600_calibration(AS5600CalibrationResult *result) {
 	cos_angle = cos(angle_rad);
 	sin_angle = sin(angle_rad);
 
-	double dt_s = dt / 1000000.0;
+	double dt_s = dt / 1'000'000.0;
 	double angular_vel = ((sin_angle - sin_angle_prev) * cos_angle - (cos_angle - cos_angle_prev) * sin_angle) / dt_s;
-
-	// angular_vel_filtered = LOW_PASS_ALPHA * angular_vel
-	//                      + (1.0 - LOW_PASS_ALPHA) * angular_vel_filtered;
 
 	LOOP_LOG("[CALIBRATION] [AS5600] raw_angle : %i, angular_vel: %.2f, cos: %.2f, sin: %.2f", raw_angle, angular_vel,
 	         cos_angle, sin_angle);
+
 	bool is_stable = abs(angular_vel) < VELOCITY_THRESHOLD;
 	if (!is_stable) {
 		stable_since_us = t;
@@ -63,9 +67,10 @@ SequenceStatus as5600_calibration(AS5600CalibrationResult *result) {
 		avg_raw_angle += (raw_angle - avg_raw_angle) / avg_sample_count;
 
 		if (t - stable_since_us >= STABILITY_DURATION_US) {
-			int offset = static_cast<int>(avg_raw_angle);
+			int16_t offset = static_cast<int16_t>(avg_raw_angle);
+
 			result->raw_offset = offset;
-			LOOP_LOG("[CALIBRATION] [AS5600] stable for %lu", t - stable_since_us);
+
 			LOOP_LOG("[CALIBRATION] [AS5600] offset set to %i", offset);
 			return SequenceStatus::DONE;
 		}

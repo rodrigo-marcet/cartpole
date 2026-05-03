@@ -14,11 +14,11 @@ enum class MainSequenceState : uint8_t {
 	ERROR = 255,
 };
 
-SequenceStatus main_sequence(MainSequenceState &current_state, const EncoderEstimatesResult &fb,
-                             const ODriveCalibrationResult &limits);
+SequenceStatus main_sequence(MainSequenceState &current_state, const CalibrationResult &calibration_result,
+                             const EncoderEstimatesResult &fb);
 
 SequenceStatus running_sequence(const ODriveCalibrationResult &calibration_result);
 
-SequenceStatus running_pos(const ODriveCalibrationResult &calibration_result, const EncoderEstimatesResult &fb);
+SequenceStatus running_pos(const CalibrationResult &calibration_result, const EncoderEstimatesResult &fb);
 
 SequenceStatus running_torque(const ODriveCalibrationResult &calibration_result, const EncoderEstimatesResult &fb);

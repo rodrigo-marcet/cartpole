@@ -1,11 +1,14 @@
 #include "src/states/running/main_sequence.h"
 
+#include <cmath>
+
 #include "src/utils/odrive.h"
 #include "src/utils/odrive_types.h"
+#include "src/utils/as5600.h"
 #include "src/utils/log_macros.h"
 
-SequenceStatus main_sequence(MainSequenceState &current_state, const EncoderEstimatesResult &fb,
-                             const ODriveCalibrationResult &limits) {
+SequenceStatus main_sequence(MainSequenceState &current_state, const CalibrationResult &calibration_result,
+                             const EncoderEstimatesResult &fb) {
 
 	static unsigned long last_sample_time = 0;
 	unsigned long t = micros();
@@ -61,8 +64,7 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const EncoderEsti
 	}
 	case MainSequenceState::SINUSOIDAL_POS: {
 
-		// SequenceStatus status = running_pos(limits, fb);
-		odrv0.setVelocity(10.0f);
+		SequenceStatus status = running_pos(calibration_result, fb);
 
 		break;
 	}
@@ -89,15 +91,15 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const EncoderEsti
 	return SequenceStatus::RUNNING;
 }
 
-SequenceStatus running_pos(const ODriveCalibrationResult &limits, const EncoderEstimatesResult &fb) {
-	const float MARGIN = 0.1f;
-	const float upper = limits.upper_limit - MARGIN;
-	const float lower = limits.lower_limit + MARGIN;
+SequenceStatus running_pos(const CalibrationResult &calibration_result, const EncoderEstimatesResult &fb) {
+	const float MARGIN = 5.0f;
+	const float upper = calibration_result.odrive_result.upper_limit - MARGIN;
+	const float lower = calibration_result.odrive_result.lower_limit + MARGIN;
 
 	const float center = (upper + lower) / 2.0f;
 	const float amplitude = (upper - lower) / 2.0f;
 
-	const float SINE_PERIOD_S = 1.0f;
+	const float SINE_PERIOD_S = 10.0f;
 	float t = 0.001f * millis();
 	float phase = t * (TWO_PI / SINE_PERIOD_S);
 
@@ -105,7 +107,13 @@ SequenceStatus running_pos(const ODriveCalibrationResult &limits, const EncoderE
 	odrv0.setTrapezoidalAccelLimits(250.0f, 250.0f);
 	odrv0.setPosition(center + amplitude * sinf(phase), amplitude * cosf(phase) * (TWO_PI / SINE_PERIOD_S));
 
-	LOOP_LOG("pos: %.2f, vel: %.2f", fb.pos, fb.vel);
+	double as5600_rads = as5600_read_rads(calibration_result.inner_encoder_result.raw_offset);
+	int raw_angle = as5600_read_raw();
+
+	double cosine = cos(as5600_rads);
+	double sine = sin(as5600_rads);
+
+	LOOP_LOG("cosine: %.2f,\t sine: %.2f", cosine, sine);
 
 	return SequenceStatus::RUNNING;
 }
