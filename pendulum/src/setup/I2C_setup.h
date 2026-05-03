@@ -6,4 +6,4 @@
 
 void init_i2c();
 
-void i2c_scan();
+bool i2c_scan();
