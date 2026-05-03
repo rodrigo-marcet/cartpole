@@ -25,6 +25,7 @@
 
 SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 	static RunningState current_state = RunningState::SETUP;
+
 	static MainSequenceState main_sequence_state = MainSequenceState::ENABLE_CONTROL_LOOP_CONTROL;
 
 	const ODriveCalibrationResult &limits = calibration_result.odrive_result;

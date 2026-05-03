@@ -10,15 +10,15 @@
 #include "src/utils/hfsm_types.h"
 
 SequenceStatus calibration_sequence(CalibrationResult *result) {
-	static CalibrationState current_state = CalibrationState::ODRIVE;
+	static CalibrationState current_state = CalibrationState::AS5600;
 
 	switch (current_state) {
 	case CalibrationState::AS5600: {
 		SequenceStatus status = as5600_calibration(&result->inner_encoder_result);
 
 		if (status == SequenceStatus::DONE) {
-			LOOP_LOG("AS5600 calibration DONE.\n");
-			current_state = CalibrationState::DONE;
+			LOOP_LOG("[CALIBRATION] [AS5600] calibration DONE.\n");
+			current_state = CalibrationState::ODRIVE;
 		} else if (status == SequenceStatus::ERROR) {
 			current_state = CalibrationState::ERROR;
 		}
@@ -28,7 +28,7 @@ SequenceStatus calibration_sequence(CalibrationResult *result) {
 		SequenceStatus status = odrive_calibration(&result->odrive_result);
 
 		if (status == SequenceStatus::DONE) {
-			LOOP_LOG("Odrive calibration DONE.\n");
+			LOOP_LOG("[CALIBRATION] [ODRIVE] calibration DONE.\n");
 			current_state = CalibrationState::DONE;
 		} else if (status == SequenceStatus::ERROR) {
 			current_state = CalibrationState::ERROR;

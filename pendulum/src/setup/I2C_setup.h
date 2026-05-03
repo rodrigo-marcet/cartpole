@@ -5,3 +5,5 @@
 #include "src/config.h"
 
 void init_i2c();
+
+void i2c_scan();

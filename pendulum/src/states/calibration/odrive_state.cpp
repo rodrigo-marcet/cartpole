@@ -28,7 +28,7 @@ SequenceStatus odrive_calibration(ODriveCalibrationResult *result) {
 		EncoderEstimatesResult res = get_encoder_estimates();
 		if (res.ok) {
 			init_pos = res.pos;
-			LOOP_LOG("init_pos = %.2f", init_pos);
+			LOOP_LOG("[CALIBRATION] [ODRIVE] init_pos = %.2f", init_pos);
 			current_state = OdriveCalibrationState::ENABLE_VELOCITY_CONTROL_POSITIVE;
 		}
 		break;
@@ -37,10 +37,10 @@ SequenceStatus odrive_calibration(ODriveCalibrationResult *result) {
 	case OdriveCalibrationState::ENABLE_VELOCITY_CONTROL_POSITIVE: {
 		if (!odrv0.setControllerMode(ODriveControlMode::CONTROL_MODE_VELOCITY_CONTROL,
 		                             ODriveInputMode::INPUT_MODE_PASSTHROUGH)) {
-			LOOP_ERROR("Failed to enable velocity control (positive)");
+			LOOP_ERROR("[CALIBRATION] [ODRIVE] Failed to enable velocity control (positive)");
 			current_state = OdriveCalibrationState::ERROR;
 		} else {
-			LOOP_LOG("Velocity control (positive) enabled");
+			LOOP_LOG("[CALIBRATION] [ODRIVE] Velocity control (positive) enabled");
 			current_state = OdriveCalibrationState::MOVE_TO_POSITIVE_LIMIT;
 		}
 		break;
@@ -49,7 +49,7 @@ SequenceStatus odrive_calibration(ODriveCalibrationResult *result) {
 	case OdriveCalibrationState::MOVE_TO_POSITIVE_LIMIT: {
 		if (move_to_limit(Direction::POSITIVE)) {
 			odrv0.setVelocity(0.0f, 0.0f);
-			LOOP_LOG("Reached positive limit");
+			LOOP_LOG("[CALIBRATION] [ODRIVE] Reached positive limit");
 			current_state = OdriveCalibrationState::SAVE_UPPER_LIMIT;
 		}
 		break;
@@ -59,7 +59,7 @@ SequenceStatus odrive_calibration(ODriveCalibrationResult *result) {
 		EncoderEstimatesResult res = get_encoder_estimates();
 		if (res.ok) {
 			physical_upper_limit = res.pos;
-			LOOP_LOG("physical_upper_limit = %.2f", physical_upper_limit);
+			LOOP_LOG("[CALIBRATION] [ODRIVE] physical_upper_limit = %.2f", physical_upper_limit);
 
 			current_state = OdriveCalibrationState::MANAGE_ERRORS_1;
 		}
@@ -72,13 +72,13 @@ SequenceStatus odrive_calibration(ODriveCalibrationResult *result) {
 		delay(10);
 		odrv0.setState(ODriveAxisState::AXIS_STATE_CLOSED_LOOP_CONTROL);
 		closed_loop_timeout = millis();
-		LOOP_LOG("Errors managed succesfully (1)");
+		LOOP_LOG("[CALIBRATION] [ODRIVE] Errors managed succesfully (1)");
 		current_state = OdriveCalibrationState::WAIT_FOR_CLOSED_LOOP_1;
 		break;
 	}
 	case OdriveCalibrationState::WAIT_FOR_CLOSED_LOOP_1: {
 		if (millis() - closed_loop_timeout > 100) {
-			LOOP_ERROR("Closed loop control couldn't be enabled (1)");
+			LOOP_ERROR("[CALIBRATION] [ODRIVE] Closed loop control couldn't be enabled (1)");
 			current_state = OdriveCalibrationState::ERROR;
 			break;
 		}
@@ -86,7 +86,7 @@ SequenceStatus odrive_calibration(ODriveCalibrationResult *result) {
 		Heartbeat_msg_t hb;
 		if (odrv0.request(hb, 10)) {
 			if (hb.Axis_State == ODriveAxisState::AXIS_STATE_CLOSED_LOOP_CONTROL) {
-				LOOP_LOG("Closed loop confirmed (1)");
+				LOOP_LOG("[CALIBRATION] [ODRIVE] Closed loop confirmed (1)");
 				current_state = OdriveCalibrationState::ENABLE_POSITION_CONTROL_1;
 			}
 		}
@@ -95,10 +95,11 @@ SequenceStatus odrive_calibration(ODriveCalibrationResult *result) {
 	case OdriveCalibrationState::ENABLE_POSITION_CONTROL_1: {
 		if (!odrv0.setControllerMode(ODriveControlMode::CONTROL_MODE_POSITION_CONTROL,
 		                             ODriveInputMode::INPUT_MODE_TRAP_TRAJ)) {
-			LOOP_ERROR("Switching to position control on ENABLE_POSITION_CONTROL_1 was not possible");
+			LOOP_ERROR(
+			    "[CALIBRATION] [ODRIVE] Switching to position control on ENABLE_POSITION_CONTROL_1 was not possible");
 			current_state = OdriveCalibrationState::ERROR;
 		} else {
-			LOOP_LOG("Position control (1) set succesfully");
+			LOOP_LOG("[CALIBRATION] [ODRIVE] Position control (1) set succesfully");
 
 			current_state = OdriveCalibrationState::GO_TO_INIT_POS;
 		}
@@ -106,7 +107,7 @@ SequenceStatus odrive_calibration(ODriveCalibrationResult *result) {
 	}
 	case OdriveCalibrationState::GO_TO_INIT_POS: {
 		if (move_to_position(init_pos, 6.0f, std::make_pair(10.0f, 10.0f))) {
-			LOOP_LOG("Reached init_pos successfully");
+			LOOP_LOG("[CALIBRATION] [ODRIVE] Reached init_pos successfully");
 
 			current_state = OdriveCalibrationState::ENABLE_VELOCITY_CONTROL_NEGATIVE;
 		}
@@ -116,10 +117,10 @@ SequenceStatus odrive_calibration(ODriveCalibrationResult *result) {
 	case OdriveCalibrationState::ENABLE_VELOCITY_CONTROL_NEGATIVE: {
 		if (!odrv0.setControllerMode(ODriveControlMode::CONTROL_MODE_VELOCITY_CONTROL,
 		                             ODriveInputMode::INPUT_MODE_PASSTHROUGH)) {
-			LOOP_ERROR("Failed to enable velocity control (positive)");
+			LOOP_ERROR("[CALIBRATION] [ODRIVE] Failed to enable velocity control (positive)");
 			current_state = OdriveCalibrationState::ERROR;
 		} else {
-			LOOP_LOG("Velocity control (positive) enabled");
+			LOOP_LOG("[CALIBRATION] [ODRIVE] Velocity control (positive) enabled");
 			current_state = OdriveCalibrationState::MOVE_TO_NEGATIVE_LIMIT;
 		}
 
@@ -129,7 +130,7 @@ SequenceStatus odrive_calibration(ODriveCalibrationResult *result) {
 	case OdriveCalibrationState::MOVE_TO_NEGATIVE_LIMIT: {
 		if (move_to_limit(Direction::NEGATIVE)) {
 			odrv0.setVelocity(0.0f, 0.0f);
-			LOOP_LOG("Reached negative limit");
+			LOOP_LOG("[CALIBRATION] [ODRIVE] Reached negative limit");
 			current_state = OdriveCalibrationState::SAVE_LOWER_LIMIT;
 		}
 
@@ -140,7 +141,7 @@ SequenceStatus odrive_calibration(ODriveCalibrationResult *result) {
 		EncoderEstimatesResult res = get_encoder_estimates();
 		if (res.ok) {
 			physical_lower_limit = res.pos;
-			LOOP_LOG("physical_lower_limit = %.2f", physical_lower_limit);
+			LOOP_LOG("[CALIBRATION] [ODRIVE] physical_lower_limit = %.2f", physical_lower_limit);
 
 			current_state = OdriveCalibrationState::MANAGE_ERRORS_2;
 		}
@@ -154,13 +155,13 @@ SequenceStatus odrive_calibration(ODriveCalibrationResult *result) {
 		odrv0.setState(ODriveAxisState::AXIS_STATE_CLOSED_LOOP_CONTROL);
 		closed_loop_timeout = millis();
 
-		LOOP_LOG("Errors managed succesfully (2)");
+		LOOP_LOG("[CALIBRATION] [ODRIVE] Errors managed succesfully (2)");
 		current_state = OdriveCalibrationState::WAIT_FOR_CLOSED_LOOP_2;
 		break;
 	}
 	case OdriveCalibrationState::WAIT_FOR_CLOSED_LOOP_2: {
 		if (millis() - closed_loop_timeout > 100) {
-			LOOP_ERROR("Closed loop control couldn't be enabled (2)");
+			LOOP_ERROR("[CALIBRATION] [ODRIVE] Closed loop control couldn't be enabled (2)");
 			current_state = OdriveCalibrationState::ERROR;
 			break;
 		}
@@ -169,7 +170,7 @@ SequenceStatus odrive_calibration(ODriveCalibrationResult *result) {
 
 		if (odrv0.request(hb, 10)) {
 			if (hb.Axis_State == ODriveAxisState::AXIS_STATE_CLOSED_LOOP_CONTROL) {
-				LOOP_LOG("Closed loop confirmed (2)");
+				LOOP_LOG("[CALIBRATION] [ODRIVE] Closed loop confirmed (2)");
 				current_state = OdriveCalibrationState::CALCULATE_VALUES;
 			}
 		}
@@ -187,8 +188,8 @@ SequenceStatus odrive_calibration(ODriveCalibrationResult *result) {
 			result->physical_lower_limit = physical_lower_limit;
 			result->physical_upper_limit = physical_upper_limit;
 
-			LOOP_LOG("midpoint = %.2f, upper_limit = %.2f, lower_limit = %.2f", midpoint, limits.upper_limit,
-			         limits.lower_limit);
+			LOOP_LOG("[CALIBRATION] [ODRIVE] midpoint = %.2f, upper_limit = %.2f, lower_limit = %.2f", midpoint,
+			         limits.upper_limit, limits.lower_limit);
 			current_state = OdriveCalibrationState::ENABLE_POSITION_CONTROL_2;
 		} else
 			current_state = OdriveCalibrationState::ERROR;
@@ -199,10 +200,11 @@ SequenceStatus odrive_calibration(ODriveCalibrationResult *result) {
 	case OdriveCalibrationState::ENABLE_POSITION_CONTROL_2: {
 		if (!odrv0.setControllerMode(ODriveControlMode::CONTROL_MODE_POSITION_CONTROL,
 		                             ODriveInputMode::INPUT_MODE_TRAP_TRAJ)) {
-			LOOP_ERROR("Switching to position control on ENABLE_POSITION_CONTROL_2 was not possible");
+			LOOP_ERROR(
+			    "[CALIBRATION] [ODRIVE] Switching to position control on ENABLE_POSITION_CONTROL_2 was not possible");
 			current_state = OdriveCalibrationState::ERROR;
 		} else {
-			LOOP_LOG("Position control (2) set succesfully");
+			LOOP_LOG("[CALIBRATION] [ODRIVE] Position control (2) set succesfully");
 			current_state = OdriveCalibrationState::GO_TO_MID_POINT;
 		}
 		break;
@@ -210,7 +212,7 @@ SequenceStatus odrive_calibration(ODriveCalibrationResult *result) {
 
 	case OdriveCalibrationState::GO_TO_MID_POINT: {
 		if (move_to_position(midpoint, 6.0f, std::make_pair(10.0f, 10.0f))) {
-			LOOP_LOG("Reached midpoint successfully");
+			LOOP_LOG("[CALIBRATION] [ODRIVE] Reached midpoint successfully");
 
 			current_state = OdriveCalibrationState::DONE;
 		}
@@ -221,7 +223,7 @@ SequenceStatus odrive_calibration(ODriveCalibrationResult *result) {
 	case OdriveCalibrationState::DONE: {
 		odrv0.setState(ODriveAxisState::AXIS_STATE_IDLE);
 
-		LOOP_LOG("Succesfully calibrated rail dimensions");
+		LOOP_LOG("[CALIBRATION] [ODRIVE] Succesfully calibrated rail dimensions");
 		return SequenceStatus::DONE;
 	}
 
@@ -231,7 +233,7 @@ SequenceStatus odrive_calibration(ODriveCalibrationResult *result) {
 	}
 
 	default: {
-		LOOP_ERROR("Unexpected calibration state: %d", (int)current_state);
+		LOOP_ERROR("[CALIBRATION] [ODRIVE] Unexpected calibration state: %d", (int)current_state);
 		current_state = OdriveCalibrationState::ERROR;
 		break;
 	}
@@ -262,7 +264,7 @@ bool move_to_limit(Direction direction) {
 RailLimits calculate_limits(float lower_limit, float upper_limit) {
 	RailLimits result = {false, 0.0f, 0.0f, 0.0f};
 	if (lower_limit >= upper_limit) {
-		LOOP_ERROR("lower_limit was set higher or equal to upper_limit");
+		LOOP_ERROR("[CALIBRATION] [ODRIVE] lower_limit was set higher or equal to upper_limit");
 		return result;
 	}
 

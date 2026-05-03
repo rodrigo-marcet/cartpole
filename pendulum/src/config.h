@@ -1,7 +1,8 @@
 #pragma once
 
 #define SERIAL_BAUD 115200
-#define I2C_FREQ 400000
+// #define I2C_FREQ 400000
+#define I2C_FREQ 10000
 #define CAN_BAUDRATE 500000
 #define SAMPLE_RATE_HZ 1000
 
