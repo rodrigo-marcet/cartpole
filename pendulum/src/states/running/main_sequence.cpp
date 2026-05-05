@@ -13,6 +13,7 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const Calibration
 	static unsigned long last_sample_time = 0;
 	unsigned long t = micros();
 	unsigned long dt = t - last_sample_time;
+	double dt_s = dt / 1'000'000.0;
 
 	if (dt < 10'000)
 		return SequenceStatus::RUNNING;
@@ -46,36 +47,36 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const Calibration
 				LOOP_LOG("[RUNNING] [MAIN] Closed loop control enabled after waiting");
 				odrv0.setTorque(0.0f);
 				odrv0.setVelocity(0.0f);
-				current_state = MainSequenceState::ENABLE_POSITION_CONTROL;
+				current_state = MainSequenceState::ENABLE_TYPE_CONTROL;
 			}
 		}
 		break;
 	}
-	case MainSequenceState::ENABLE_POSITION_CONTROL: {
-		if (!odrv0.setControllerMode(ODriveControlMode::CONTROL_MODE_POSITION_CONTROL,
-		                             ODriveInputMode::INPUT_MODE_TRAP_TRAJ)) {
+	case MainSequenceState::ENABLE_TYPE_CONTROL: {
+		if (!odrv0.setControllerMode(ODriveControlMode::CONTROL_MODE_TORQUE_CONTROL,
+		                             ODriveInputMode::INPUT_MODE_PASSTHROUGH)) {
 			LOOP_ERROR("[RUNNING] [MAIN] Switching to position control was not possible");
 			current_state = MainSequenceState::ERROR;
 		} else {
 			LOOP_LOG("[RUNNING] [MAIN] Position control set succesfully");
-			current_state = MainSequenceState::SINUSOIDAL_POS;
+			current_state = MainSequenceState::POSITION_PID;
 		}
 		break;
 	}
 	case MainSequenceState::SINUSOIDAL_POS: {
 
 		SequenceStatus status = running_pos(calibration_result, fb);
-		// const float MARGIN = 1.0f;
+		break;
+	}
 
-		// const float upper = calibration_result.odrive_result.upper_limit - MARGIN;
-		// const float mid = calibration_result.odrive_result.midpoint;
-		// LOOP_LOG("pos: %.2f, upper: %.2f, midpoint: %.2f",fb.pos, upper, mid);
-		// if (move_to_position(upper, 5.0, std::make_pair(250.0f, 250.0f))){
-		// 	current_state = MainSequenceState::SINUSOIDAL_POS_2;
-		// }
+	case MainSequenceState::POSITION_PID: {
+
+		SequenceStatus status =
+		    position_pid(calibration_result.odrive_result, fb, calibration_result.odrive_result.midpoint + 3.0f, dt_s);
 
 		break;
 	}
+
 	case MainSequenceState::DONE: {
 		odrv0.setState(ODriveAxisState::AXIS_STATE_IDLE);
 		current_state = MainSequenceState::ENABLE_CONTROL_LOOP_CONTROL;
@@ -126,24 +127,44 @@ SequenceStatus running_pos(const CalibrationResult &calibration_result, const En
 	return SequenceStatus::RUNNING;
 }
 
-SequenceStatus running_torque(const CalibrationResult &calibration_result, const EncoderEstimatesResult &fb) {
+SequenceStatus position_pid(const ODriveCalibrationResult &limits, const EncoderEstimatesResult &fb,
+                            const float goal_pos, const double dt) {
 
-	delay(10);
+	static bool first_run = true;
+	static float prev_error = 0.0f;
 
-	const float SINE_PERIOD_S = 1.0f;
-	static unsigned long start_time = 0;
-	if (start_time == 0)
-		start_time = millis();
+	float error = goal_pos - fb.pos;
 
-	float t = 0.001f * (millis() - start_time);
-	float phase = t * (TWO_PI / SINE_PERIOD_S);
+	float p_gain = 0.5;
+	float p_term = error * p_gain;
 
-	const float MAX_TORQUE = 0.04f;
-	float torque = MAX_TORQUE * sinf(phase);
+	if (first_run) {
+		prev_error = error;
+		first_run = false;
+	}
+
+	float d_gain = 0.05;
+	float d_term = (error - prev_error) / dt * d_gain;
+
+	prev_error = error;
+
+	float max_torque = 0.5;
+
+	static float integral = 0.0f;
+
+	integral += error * dt;
+
+	float i_gain = 0.1;
+	float i_term = integral * i_gain;
+	i_term = std::clamp(i_term, -max_torque, max_torque);
+
+	float torque = p_term + d_term + i_term;
+	torque = std::clamp(torque, -max_torque, max_torque);
+
+	LOOP_LOG("goal = %.2f,\tpos = %.2f,\ttorque = %.2f,\tp_term = %.2f,\td_term = %.2f,\ti_term = %.2f", goal_pos,
+	         fb.pos, torque, p_term, d_term, i_term);
 
 	odrv0.setTorque(torque);
-
-	LOOP_LOG("pos: %.2f, vel: %.2f, torque: %.2f", fb.pos, fb.vel, torque);
 
 	return SequenceStatus::RUNNING;
 }
