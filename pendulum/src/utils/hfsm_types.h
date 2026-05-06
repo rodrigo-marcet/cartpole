@@ -13,7 +13,7 @@ struct ODriveCalibrationResult {
 	float physical_lower_limit = 0;
 };
 struct AS5600CalibrationResult {
-	int16_t raw_offset = 0;
+	double raw_offset = 0;
 };
 
 struct CalibrationResult {

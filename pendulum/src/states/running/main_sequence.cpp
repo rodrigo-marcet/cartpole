@@ -59,7 +59,7 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const Calibration
 			current_state = MainSequenceState::ERROR;
 		} else {
 			LOOP_LOG("[RUNNING] [MAIN] Position control set succesfully");
-			current_state = MainSequenceState::POSITION_PID;
+			current_state = MainSequenceState::MONITOR_AS5600;
 		}
 		break;
 	}
@@ -73,6 +73,36 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const Calibration
 
 		SequenceStatus status =
 		    position_pid(calibration_result.odrive_result, fb, calibration_result.odrive_result.midpoint + 3.0f, dt_s);
+
+		break;
+	}
+
+	case MainSequenceState::MONITOR_AS5600: {
+
+		static unsigned long stable_since = 0;
+
+		if (millis() - stable_since > 4000)
+			stable_since = millis();
+
+		double as5600_rads = as5600_read_rads(calibration_result.inner_encoder_result.raw_offset);
+		double threshold = PI * 0.1;
+
+		// LOOP_LOG("angle: %.6f,\t difference: %.6f", as5600_rads, as5600_rads - PI);
+
+		if ((PI - threshold >= as5600_rads) || (as5600_rads >= PI + threshold))
+			stable_since = millis();
+		else if (millis() - stable_since >= 3000) {
+			LOOP_LOG("PENDULUM IS STABLE AND UPRIGHT");
+			current_state = MainSequenceState::PENDULUM_PID;
+		}
+
+		break;
+	}
+
+	case MainSequenceState::PENDULUM_PID: {
+
+		SequenceStatus status = pendulum_pid(calibration_result.odrive_result, fb,
+		                                     calibration_result.inner_encoder_result.raw_offset, dt_s, PI);
 
 		break;
 	}
@@ -108,12 +138,12 @@ SequenceStatus running_pos(const CalibrationResult &calibration_result, const En
 	const float center = (upper + lower) / 2.0f;
 	const float amplitude = (upper - lower) / 2.0f;
 
-	const float SINE_PERIOD_S = 1.0f;
+	const float SINE_PERIOD_S = 10.0f;
 	float t = 0.001f * millis();
 	float phase = t * (TWO_PI / SINE_PERIOD_S);
 
-	odrv0.setTrapezoidalVelLimit(60.0f);
-	odrv0.setTrapezoidalAccelLimits(250.0f, 250.0f);
+	odrv0.setTrapezoidalVelLimit(6.0f);
+	odrv0.setTrapezoidalAccelLimits(25.0f, 25.0f);
 	odrv0.setPosition(center + amplitude * sinf(phase), 0.0f);
 
 	double as5600_rads = as5600_read_rads(calibration_result.inner_encoder_result.raw_offset);
@@ -122,10 +152,13 @@ SequenceStatus running_pos(const CalibrationResult &calibration_result, const En
 	double cosine = cos(as5600_rads);
 	double sine = sin(as5600_rads);
 
-	LOOP_LOG("cosine: %.2f,\t sine: %.2f", cosine, sine);
+	LOOP_LOG("as5600_rads: %.2f,\t cosine: %.2f,\t sine: %.2f", as5600_rads, cosine, sine);
 
 	return SequenceStatus::RUNNING;
 }
+
+// position_pid(midpoint, curr_pos, dt_s)
+// 		return angle deviation
 
 SequenceStatus position_pid(const ODriveCalibrationResult &limits, const EncoderEstimatesResult &fb,
                             const float goal_pos, const double dt) {
@@ -161,8 +194,56 @@ SequenceStatus position_pid(const ODriveCalibrationResult &limits, const Encoder
 	float torque = p_term + d_term + i_term;
 	torque = std::clamp(torque, -max_torque, max_torque);
 
-	LOOP_LOG("goal = %.2f,\tpos = %.2f,\ttorque = %.2f,\tp_term = %.2f,\td_term = %.2f,\ti_term = %.2f", goal_pos,
-	         fb.pos, torque, p_term, d_term, i_term);
+	// LOOP_LOG("goal = %.2f,\tpos = %.2f,\ttorque = %.2f,\tp_term = %.2f,\td_term = %.2f,\ti_term = %.2f", goal_pos,
+	//          fb.pos, torque, p_term, d_term, i_term);
+
+	odrv0.setTorque(torque);
+
+	return SequenceStatus::RUNNING;
+}
+
+SequenceStatus pendulum_pid(const ODriveCalibrationResult &limits, const EncoderEstimatesResult &fb,
+                            const double as5600_offset, const double dt_s, const float goal_angle) {
+
+	double upright_offset = 0.05;
+	double as5600_rads = as5600_read_rads(as5600_offset);
+
+	static bool first_run = true;
+	static float prev_error = 0.0f;
+
+	float error = (goal_angle + upright_offset) - as5600_rads;
+
+	float p_gain = 0.5;
+	float p_term = error * p_gain;
+
+	if (first_run) {
+		prev_error = error;
+		first_run = false;
+	}
+
+	float d_gain = 0.05;
+	float d_term = (error - prev_error) / dt_s * d_gain;
+
+	prev_error = error;
+
+	float max_torque = 5.0f;
+
+	static float integral = 0.0f;
+
+	integral += error * dt_s;
+
+	float i_gain = 0.6;
+	float max_integral = max_torque / i_gain;
+	integral = std::clamp(integral, -max_integral, max_integral);
+
+	float i_term = integral * i_gain;
+	i_term = std::clamp(i_term, -max_torque, max_torque);
+
+	float torque = p_term + d_term + i_term;
+	torque = std::clamp(torque, -max_torque, max_torque);
+
+	LOOP_LOG("goal = %.2f,\tangle = %.2f,\ttorque = %.2f,\tp_term = %.2f,\td_term = %.2f,\ti_term = %.2f", goal_angle,
+	         as5600_rads, torque, p_term, d_term, i_term);
 
 	odrv0.setTorque(torque);
 

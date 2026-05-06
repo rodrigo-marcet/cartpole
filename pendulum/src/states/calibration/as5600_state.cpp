@@ -67,11 +67,9 @@ SequenceStatus as5600_calibration(AS5600CalibrationResult *result) {
 		avg_raw_angle += (raw_angle - avg_raw_angle) / avg_sample_count;
 
 		if (t - stable_since_us >= STABILITY_DURATION_US) {
-			int16_t offset = static_cast<int16_t>(avg_raw_angle);
+			result->raw_offset = avg_raw_angle;
 
-			result->raw_offset = offset;
-
-			LOOP_LOG("[CALIBRATION] [AS5600] offset set to %i", offset);
+			LOOP_LOG("[CALIBRATION] [AS5600] offset set to %.4f", avg_raw_angle);
 			return SequenceStatus::DONE;
 		}
 	}

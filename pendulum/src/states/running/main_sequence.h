@@ -10,6 +10,8 @@ enum class MainSequenceState : uint8_t {
 	ENABLE_TYPE_CONTROL,
 	SINUSOIDAL_POS,
 	POSITION_PID,
+	MONITOR_AS5600,
+	PENDULUM_PID,
 
 	DONE = 254,
 	ERROR = 255,
@@ -22,3 +24,7 @@ SequenceStatus running_pos(const CalibrationResult &calibration_result, const En
 
 SequenceStatus position_pid(const ODriveCalibrationResult &limits, const EncoderEstimatesResult &fb,
                             const float goal_pos, const double dt);
+
+SequenceStatus pendulum_pid(const ODriveCalibrationResult &limits, const EncoderEstimatesResult &fb,
+                            const double as5600_offset, const double dt_s, const float goal_angle);
+// const float goal_pos, const double dt);

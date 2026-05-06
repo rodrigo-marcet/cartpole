@@ -23,8 +23,18 @@ int16_t as5600_read_raw() {
 // 	return (raw - offset) * (2.0 * PI / 4096.0) - PI;
 // }
 
-double as5600_read_rads(int16_t offset) {
+// double as5600_read_rads(double offset) {
+// 	int16_t raw = as5600_read_raw();
+// 	double adjusted = ((int)raw - (int)offset % 4096 + 4096) % 4096;
+// 	return adjusted * (2.0 * PI / 4096.0);
+// }
+
+double as5600_read_rads(double offset) {
 	int16_t raw = as5600_read_raw();
-	int adjusted = ((int)raw - (int)offset % 4096 + 4096) % 4096;
+
+	double adjusted = std::fmod((double)raw - offset, 4096.0);
+	if (adjusted < 0)
+		adjusted += 4096.0;
+
 	return adjusted * (2.0 * PI / 4096.0);
 }
