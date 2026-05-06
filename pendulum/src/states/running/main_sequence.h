@@ -20,10 +20,7 @@ enum class MainSequenceState : uint8_t {
 SequenceStatus main_sequence(MainSequenceState &current_state, const CalibrationResult &calibration_result,
                              const EncoderEstimatesResult &fb);
 
-SequenceStatus running_pos(const CalibrationResult &calibration_result, const EncoderEstimatesResult &fb);
-
-SequenceStatus position_pid(const ODriveCalibrationResult &limits, const EncoderEstimatesResult &fb,
-                            const float goal_pos, const double dt);
+float position_pid(const float midpoint, const float current_pos, const double dt_s);
 
 SequenceStatus pendulum_pid(const ODriveCalibrationResult &limits, const EncoderEstimatesResult &fb,
                             const double as5600_offset, const double dt_s, const float goal_angle);
