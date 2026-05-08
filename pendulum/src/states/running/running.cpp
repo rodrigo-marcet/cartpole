@@ -11,18 +11,6 @@
 #include "src/utils/log_macros.h"
 #include "src/utils/odrive.h"
 
-// SequenceStatus running_sequence() {
-// 	double rads = as5600_read_rads();
-// 	double c = cos(rads);
-
-// 	Serial.print(get_as5600_offset());
-// 	Serial.print("         ");
-// 	Serial.print(c, 6);
-// 	Serial.print("\n");
-
-// 	return SequenceStatus::RUNNING;
-// }
-
 SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 	static RunningState current_state = RunningState::SETUP;
 
@@ -35,6 +23,11 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 	EncoderEstimatesResult fb = get_encoder_estimates();
 	if (!fb.ok) {
 		LOOP_ERROR("Error reading fb at the guard clause of the running sequence");
+		current_state = RunningState::ERROR;
+	}
+
+	if (odrv0_user_data.last_heartbeat.Axis_Error != 0) {
+		LOOP_ERROR("[RUNNING] [HEARTBEAT] odrive detected axis error: %i", odrv0_user_data.last_heartbeat.Axis_Error);
 		current_state = RunningState::ERROR;
 	}
 
@@ -87,6 +80,10 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 		return SequenceStatus::DONE;
 
 	case RunningState::ERROR: {
+		Get_Error_msg_t error_msg;
+		if (odrv0.getError(error_msg, 10)) {
+			LOOP_ERROR("[RUNNING] [ERROR] got motor error: %i", error_msg.Active_Errors);
+		}
 		odrv0.clearErrors();
 		pumpEvents(ESP32Can);
 		delay(10);
