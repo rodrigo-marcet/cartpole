@@ -131,7 +131,7 @@ float position_pid(const float midpoint, const float current_pos, const double d
 
 	float error = midpoint - current_pos;
 
-	float p_gain = 0.02;
+	float p_gain = 0.044;
 	float p_term = error * p_gain;
 
 	if (first_run) {
@@ -139,7 +139,7 @@ float position_pid(const float midpoint, const float current_pos, const double d
 		first_run = false;
 	}
 
-	float d_gain = 0.01;
+	float d_gain = 0.012; // best 0.011
 	float d_term = (error - prev_error) / dt_s * d_gain;
 
 	prev_error = error;
@@ -184,7 +184,7 @@ SequenceStatus pendulum_pid(const ODriveCalibrationResult &limits, const Encoder
 		first_run = false;
 	}
 
-	float d_gain = 0.05;
+	float d_gain = 0.03;
 	float d_term = (error - prev_error) / dt_s * d_gain;
 
 	prev_error = error;
