@@ -9,12 +9,12 @@
 #include "src/utils/tflite.h"
 
 SequenceStatus main_sequence(MainSequenceState &current_state, const ODriveCalibrationResult &limits,
-                             const EncoderEstimatesResult &fb, const double inner_encoder_rads) {
+                             const EncoderEstimatesResult &fb, const float inner_encoder_rads) {
 
 	static unsigned long last_sample_time = 0;
 	unsigned long t = micros();
 	unsigned long dt = t - last_sample_time;
-	double dt_s = dt / 1'000'000.0;
+	float dt_s = dt / 1'000'000.0;
 
 	if (dt < 10'000)
 		return SequenceStatus::RUNNING;
@@ -69,7 +69,7 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const ODriveCalib
 		if (millis() - stable_since > 4000)
 			stable_since = millis();
 
-		double threshold = PI * 0.1;
+		float threshold = PI * 0.1;
 
 		if ((PI - threshold >= inner_encoder_rads) || (inner_encoder_rads >= PI + threshold))
 			stable_since = millis();
@@ -125,7 +125,7 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const ODriveCalib
 	return SequenceStatus::RUNNING;
 }
 
-float position_pid(const float midpoint, const float current_pos, const double dt_s) {
+float position_pid(const float midpoint, const float current_pos, const float dt_s) {
 
 	static bool first_run = true;
 	static float prev_error = 0.0f;
@@ -166,11 +166,11 @@ float position_pid(const float midpoint, const float current_pos, const double d
 	return deviation;
 }
 
-// SequenceStatus pendulum_pid(const float pos, const float , const double as5600_rads, const double dt_s,
+// SequenceStatus pendulum_pid(const float pos, const float , const float as5600_rads, const float dt_s,
 //                             const float goal_angle)
-SequenceStatus pendulum_pid(const double as5600_rads, const double dt_s, const float goal_angle) {
+SequenceStatus pendulum_pid(const float as5600_rads, const float dt_s, const float goal_angle) {
 
-	double upright_offset = 0.05;
+	float upright_offset = 0.05;
 
 	static bool first_run = true;
 	static float prev_error = 0.0f;
@@ -215,17 +215,16 @@ SequenceStatus pendulum_pid(const double as5600_rads, const double dt_s, const f
 	return SequenceStatus::RUNNING;
 }
 
-SequenceStatus neural_network(const float cart_pos, const float cart_vel, const double pole_rotation,
-                              const double dt_s) {
+SequenceStatus neural_network(const float cart_pos, const float cart_vel, const float pole_rotation, const float dt_s) {
 	static bool first_run = true;
-	static double prev_pole_rotation = 0.0f;
+	static float prev_pole_rotation = 0.0f;
 
 	if (first_run) {
 		prev_pole_rotation = pole_rotation;
 		first_run = false;
 	}
 
-	double pole_vel = (pole_rotation - prev_pole_rotation) / dt_s;
+	float pole_vel = (pole_rotation - prev_pole_rotation) / dt_s;
 	prev_pole_rotation = pole_rotation;
 
 	input->data.f[0] = cart_pos;

@@ -19,10 +19,10 @@ enum class MainSequenceState : uint8_t {
 };
 
 SequenceStatus main_sequence(MainSequenceState &current_state, const ODriveCalibrationResult &limits,
-                             const EncoderEstimatesResult &fb, const double inner_encoder_rads);
+                             const EncoderEstimatesResult &fb, const float inner_encoder_rads);
 
-float position_pid(const float midpoint, const float current_pos, const double dt_s);
+float position_pid(const float midpoint, const float current_pos, const float dt_s);
 
-SequenceStatus pendulum_pid(const double as5600_rads, const double dt_s, const float goal_angle);
+SequenceStatus pendulum_pid(const float as5600_rads, const float dt_s, const float goal_angle);
 
-SequenceStatus neural_network(const float cart_pos, const float cart_vel, const double as5600_rads, const double dt_s);
+SequenceStatus neural_network(const float cart_pos, const float cart_vel, const float as5600_rads, const float dt_s);

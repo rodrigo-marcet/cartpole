@@ -16,10 +16,10 @@ int16_t as5600_read_raw() {
 	return ((high & 0x0F) << 8) | low;
 }
 
-double as5600_read_rads(double offset) {
+float as5600_read_rads(float offset) {
 	int16_t raw = as5600_read_raw();
 
-	double adjusted = std::fmod((double)raw - offset, 4096.0);
+	float adjusted = std::fmod((float)raw - offset, 4096.0);
 	if (adjusted < 0)
 		adjusted += 4096.0;
 

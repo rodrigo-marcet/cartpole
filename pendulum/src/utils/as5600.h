@@ -7,4 +7,4 @@
 
 int16_t as5600_read_raw();
 
-double as5600_read_rads(double offset);
+float as5600_read_rads(float offset);
