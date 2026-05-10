@@ -22,6 +22,8 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 
 	auto t_pump = micros();
 	EncoderEstimatesResult fb = get_encoder_estimates();
+	double inner_encoder_rads = as5600_read_rads(calibration_result.inner_encoder_result.raw_offset);
+
 	if (!fb.ok) {
 		LOOP_ERROR("Error reading fb at the guard clause of the running sequence");
 		current_state = RunningState::ERROR;
@@ -58,7 +60,8 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 	}
 
 	case RunningState::MAIN_SEQUENCE: {
-		SequenceStatus status = main_sequence(main_sequence_state, calibration_result, fb);
+		SequenceStatus status =
+		    main_sequence(main_sequence_state, calibration_result.odrive_result, fb, inner_encoder_rads);
 
 		if (status == SequenceStatus::DONE) {
 			current_state = RunningState::DONE;

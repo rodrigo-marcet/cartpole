@@ -8,8 +8,8 @@
 #include "src/utils/log_macros.h"
 #include "src/utils/tflite.h"
 
-SequenceStatus main_sequence(MainSequenceState &current_state, const CalibrationResult &calibration_result,
-                             const EncoderEstimatesResult &fb) {
+SequenceStatus main_sequence(MainSequenceState &current_state, const ODriveCalibrationResult &limits,
+                             const EncoderEstimatesResult &fb, const double inner_encoder_rads) {
 
 	static unsigned long last_sample_time = 0;
 	unsigned long t = micros();
@@ -69,10 +69,9 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const Calibration
 		if (millis() - stable_since > 4000)
 			stable_since = millis();
 
-		double as5600_rads = as5600_read_rads(calibration_result.inner_encoder_result.raw_offset);
 		double threshold = PI * 0.1;
 
-		if ((PI - threshold >= as5600_rads) || (as5600_rads >= PI + threshold))
+		if ((PI - threshold >= inner_encoder_rads) || (inner_encoder_rads >= PI + threshold))
 			stable_since = millis();
 		else if (millis() - stable_since >= 3000) {
 			LOOP_LOG("PENDULUM IS STABLE AND UPRIGHT");
@@ -87,18 +86,17 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const Calibration
 		static float goal_deviation = 0.0f;
 
 		if (call_count % 5 == 0) {
-			goal_deviation = position_pid(calibration_result.odrive_result.midpoint, fb.pos, dt_s * 5);
+			goal_deviation = position_pid(limits.midpoint, fb.pos, dt_s * 5);
 		}
 		call_count++;
 
-		SequenceStatus status =
-		    pendulum_pid(fb, calibration_result.inner_encoder_result.raw_offset, dt_s, PI - goal_deviation);
+		SequenceStatus status = pendulum_pid(inner_encoder_rads, dt_s, PI - goal_deviation);
 
 		break;
 	}
 	case MainSequenceState::NEURAL_NETWORK: {
 		// auto t_pump = micros();
-		neural_network(fb, calibration_result.inner_encoder_result.raw_offset, dt_s);
+		neural_network(fb.pos, fb.vel, inner_encoder_rads, dt_s);
 		// LOOP_LOG("[PROF] neural_network: %.3f ms", (micros() - t_pump) / 1000.0);
 		break;
 	}
@@ -168,11 +166,11 @@ float position_pid(const float midpoint, const float current_pos, const double d
 	return deviation;
 }
 
-SequenceStatus pendulum_pid(const EncoderEstimatesResult &fb, const double as5600_offset, const double dt_s,
-                            const float goal_angle) {
+// SequenceStatus pendulum_pid(const float pos, const float , const double as5600_rads, const double dt_s,
+//                             const float goal_angle)
+SequenceStatus pendulum_pid(const double as5600_rads, const double dt_s, const float goal_angle) {
 
 	double upright_offset = 0.05;
-	double as5600_rads = as5600_read_rads(as5600_offset);
 
 	static bool first_run = true;
 	static float prev_error = 0.0f;
@@ -217,10 +215,10 @@ SequenceStatus pendulum_pid(const EncoderEstimatesResult &fb, const double as560
 	return SequenceStatus::RUNNING;
 }
 
-SequenceStatus neural_network(const EncoderEstimatesResult &fb, const double as5600_offset, const double dt_s) {
+SequenceStatus neural_network(const float cart_pos, const float cart_vel, const double pole_rotation,
+                              const double dt_s) {
 	static bool first_run = true;
 	static double prev_pole_rotation = 0.0f;
-	double pole_rotation = as5600_read_rads(as5600_offset);
 
 	if (first_run) {
 		prev_pole_rotation = pole_rotation;
@@ -229,9 +227,6 @@ SequenceStatus neural_network(const EncoderEstimatesResult &fb, const double as5
 
 	double pole_vel = (pole_rotation - prev_pole_rotation) / dt_s;
 	prev_pole_rotation = pole_rotation;
-
-	double cart_pos = fb.pos;
-	double cart_vel = fb.vel;
 
 	input->data.f[0] = cart_pos;
 	input->data.f[1] = cart_vel;
