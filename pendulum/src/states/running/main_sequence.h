@@ -23,7 +23,7 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const Calibration
 
 float position_pid(const float midpoint, const float current_pos, const double dt_s);
 
-SequenceStatus pendulum_pid(const ODriveCalibrationResult &limits, const EncoderEstimatesResult &fb,
-                            const double as5600_offset, const double dt_s, const float goal_angle);
+SequenceStatus pendulum_pid(const EncoderEstimatesResult &fb, const double as5600_offset, const double dt_s,
+                            const float goal_angle);
 
-SequenceStatus neural_network();
+SequenceStatus neural_network(const EncoderEstimatesResult &fb, const double as5600_offset, const double dt_s);

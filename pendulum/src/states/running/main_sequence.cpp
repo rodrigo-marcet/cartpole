@@ -71,7 +71,6 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const Calibration
 
 		double as5600_rads = as5600_read_rads(calibration_result.inner_encoder_result.raw_offset);
 		double threshold = PI * 0.1;
-		neural_network();
 
 		if ((PI - threshold >= as5600_rads) || (as5600_rads >= PI + threshold))
 			stable_since = millis();
@@ -93,14 +92,13 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const Calibration
 		call_count++;
 
 		SequenceStatus status =
-		    pendulum_pid(calibration_result.odrive_result, fb, calibration_result.inner_encoder_result.raw_offset, dt_s,
-		                 PI - goal_deviation);
+		    pendulum_pid(fb, calibration_result.inner_encoder_result.raw_offset, dt_s, PI - goal_deviation);
 
 		break;
 	}
 	case MainSequenceState::NEURAL_NETWORK: {
 		// auto t_pump = micros();
-		neural_network();
+		neural_network(fb, calibration_result.inner_encoder_result.raw_offset, dt_s);
 		// LOOP_LOG("[PROF] neural_network: %.3f ms", (micros() - t_pump) / 1000.0);
 		break;
 	}
@@ -170,8 +168,8 @@ float position_pid(const float midpoint, const float current_pos, const double d
 	return deviation;
 }
 
-SequenceStatus pendulum_pid(const ODriveCalibrationResult &limits, const EncoderEstimatesResult &fb,
-                            const double as5600_offset, const double dt_s, const float goal_angle) {
+SequenceStatus pendulum_pid(const EncoderEstimatesResult &fb, const double as5600_offset, const double dt_s,
+                            const float goal_angle) {
 
 	double upright_offset = 0.05;
 	double as5600_rads = as5600_read_rads(as5600_offset);
@@ -219,12 +217,31 @@ SequenceStatus pendulum_pid(const ODriveCalibrationResult &limits, const Encoder
 	return SequenceStatus::RUNNING;
 }
 
-SequenceStatus neural_network() {
+SequenceStatus neural_network(const EncoderEstimatesResult &fb, const double as5600_offset, const double dt_s) {
+	static bool first_run = true;
+	static double prev_pole_rotation = 0.0f;
+	double pole_rotation = as5600_read_rads(as5600_offset);
 
-	float dummy[4] = {0.1f, 0.05f, 0.0f, 0.0f};
-	for (int i = 0; i < 4; i++)
-		input->data.f[i] = dummy[i];
+	if (first_run) {
+		prev_pole_rotation = pole_rotation;
+		first_run = false;
+	}
+
+	double pole_vel = (pole_rotation - prev_pole_rotation) / dt_s;
+	prev_pole_rotation = pole_rotation;
+
+	double cart_pos = fb.pos;
+	double cart_vel = fb.vel;
+
+	input->data.f[0] = cart_pos;
+	input->data.f[1] = cart_vel;
+	input->data.f[2] = pole_rotation;
+	input->data.f[3] = pole_vel;
+
 	interpreter->Invoke();
+
+	LOOP_LOG("cart_pos = %.6f,\tcart_vel = %.6f,\tpole_rot = %.6f,\tpole_vel = %.6f,\toutput = %.6f", cart_pos,
+	         cart_vel, pole_rotation, pole_vel, output->data.f[0]);
 
 	return SequenceStatus::RUNNING;
 }
