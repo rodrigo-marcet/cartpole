@@ -6,6 +6,7 @@
 #include "src/utils/odrive_types.h"
 #include "src/utils/as5600.h"
 #include "src/utils/log_macros.h"
+#include "src/utils/tflite.h"
 
 SequenceStatus main_sequence(MainSequenceState &current_state, const CalibrationResult &calibration_result,
                              const EncoderEstimatesResult &fb) {
@@ -21,8 +22,6 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const Calibration
 	last_sample_time = t;
 
 	static unsigned long closed_loop_timeout = 0;
-
-	pumpEvents(ESP32Can);
 
 	switch (current_state) {
 	case MainSequenceState::ENABLE_CONTROL_LOOP_CONTROL: {
@@ -72,14 +71,13 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const Calibration
 
 		double as5600_rads = as5600_read_rads(calibration_result.inner_encoder_result.raw_offset);
 		double threshold = PI * 0.1;
-
-		// LOOP_LOG("angle: %.6f,\t difference: %.6f", as5600_rads, as5600_rads - PI);
+		neural_network();
 
 		if ((PI - threshold >= as5600_rads) || (as5600_rads >= PI + threshold))
 			stable_since = millis();
 		else if (millis() - stable_since >= 3000) {
 			LOOP_LOG("PENDULUM IS STABLE AND UPRIGHT");
-			current_state = MainSequenceState::PENDULUM_PID;
+			current_state = MainSequenceState::NEURAL_NETWORK;
 		}
 
 		break;
@@ -98,6 +96,12 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const Calibration
 		    pendulum_pid(calibration_result.odrive_result, fb, calibration_result.inner_encoder_result.raw_offset, dt_s,
 		                 PI - goal_deviation);
 
+		break;
+	}
+	case MainSequenceState::NEURAL_NETWORK: {
+		// auto t_pump = micros();
+		neural_network();
+		// LOOP_LOG("[PROF] neural_network: %.3f ms", (micros() - t_pump) / 1000.0);
 		break;
 	}
 
@@ -121,6 +125,7 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const Calibration
 		break;
 	}
 	}
+
 	return SequenceStatus::RUNNING;
 }
 
@@ -210,6 +215,16 @@ SequenceStatus pendulum_pid(const ODriveCalibrationResult &limits, const Encoder
 	//          as5600_rads, torque, p_term, d_term, i_term);
 
 	odrv0.setTorque(torque);
+
+	return SequenceStatus::RUNNING;
+}
+
+SequenceStatus neural_network() {
+
+	float dummy[4] = {0.1f, 0.05f, 0.0f, 0.0f};
+	for (int i = 0; i < 4; i++)
+		input->data.f[i] = dummy[i];
+	interpreter->Invoke();
 
 	return SequenceStatus::RUNNING;
 }

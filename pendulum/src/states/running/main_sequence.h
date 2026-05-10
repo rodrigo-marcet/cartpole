@@ -12,6 +12,7 @@ enum class MainSequenceState : uint8_t {
 	POSITION_PID,
 	MONITOR_AS5600,
 	PENDULUM_PID,
+	NEURAL_NETWORK,
 
 	DONE = 254,
 	ERROR = 255,
@@ -24,4 +25,5 @@ float position_pid(const float midpoint, const float current_pos, const double d
 
 SequenceStatus pendulum_pid(const ODriveCalibrationResult &limits, const EncoderEstimatesResult &fb,
                             const double as5600_offset, const double dt_s, const float goal_angle);
-// const float goal_pos, const double dt);
+
+SequenceStatus neural_network();

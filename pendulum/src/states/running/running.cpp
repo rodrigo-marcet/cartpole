@@ -20,6 +20,7 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 
 	pumpEvents(ESP32Can);
 
+	auto t_pump = micros();
 	EncoderEstimatesResult fb = get_encoder_estimates();
 	if (!fb.ok) {
 		LOOP_ERROR("Error reading fb at the guard clause of the running sequence");
@@ -75,9 +76,11 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 		current_state = RunningState::SETUP;
 		break;
 	}
-	case RunningState::DONE:
+
+	case RunningState::DONE: {
 		current_state = RunningState::SETUP;
 		return SequenceStatus::DONE;
+	}
 
 	case RunningState::ERROR: {
 		Get_Error_msg_t error_msg;
@@ -97,6 +100,8 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 		current_state = RunningState::ERROR;
 		break;
 	}
+
+	// LOOP_LOG("[PROF] running: %.3f ms", (micros() - t_pump) / 1000.0);
 
 	return SequenceStatus::RUNNING;
 }
