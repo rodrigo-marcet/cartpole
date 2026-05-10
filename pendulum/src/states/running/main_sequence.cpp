@@ -8,16 +8,18 @@
 #include "src/utils/log_macros.h"
 #include "src/utils/tflite.h"
 
-SequenceStatus main_sequence(MainSequenceState &current_state, const ODriveCalibrationResult &limits,
+constexpr int POSITION_PID_DECIMATION = 5;
+
+SequenceStatus main_sequence(MainSequenceState &current_state, const ODriveCalibrationResult &rail_limits,
                              const EncoderEstimatesResult &fb, const float inner_angle) {
 
 	static unsigned long last_sample_time = 0;
 	unsigned long t = micros();
 	unsigned long dt = t - last_sample_time;
-	float dt_s = dt / 1'000'000.0;
-
 	if (dt < 10'000)
 		return SequenceStatus::RUNNING;
+
+	float dt_s = dt / 1'000'000.0;
 
 	last_sample_time = t;
 
@@ -85,8 +87,8 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const ODriveCalib
 		static int call_count = 0;
 		static float goal_deviation = 0.0f;
 
-		if (call_count % 5 == 0) {
-			goal_deviation = position_pid(limits.midpoint, fb.pos, dt_s * 5);
+		if (call_count % POSITION_PID_DECIMATION == 0) {
+			goal_deviation = position_pid(rail_limits.midpoint, fb.pos, dt_s * POSITION_PID_DECIMATION);
 		}
 		call_count++;
 
@@ -96,9 +98,13 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const ODriveCalib
 	}
 	case MainSequenceState::NEURAL_NETWORK: {
 		// auto t_pump = micros();
-		float normalized_pos = (fb.pos - limits.lower_limit) / (limits.upper_limit - limits.lower_limit) - 0.5;
-
-		neural_network(normalized_pos, fb.vel, inner_angle, dt_s);
+		float normalized_pos =
+		    (fb.pos - rail_limits.lower_limit) / (rail_limits.upper_limit - rail_limits.lower_limit) - 0.5;
+		// float cos_angle = cos(inner_angle);
+		// float sin_angle = sin(inner_angle);
+		float force = neural_network(normalized_pos, fb.vel, inner_angle, dt_s);
+		// float torque = force * PULLEY_RADIUS;
+		// odrv0.setTorque(torque);
 		// LOOP_LOG("[PROF] neural_network: %.3f ms", (micros() - t_pump) / 1000.0);
 		break;
 	}
@@ -215,7 +221,7 @@ SequenceStatus pendulum_pid(const float angle, const float dt_s, const float goa
 	return SequenceStatus::RUNNING;
 }
 
-SequenceStatus neural_network(const float cart_pos, const float cart_vel, const float angle, const float dt_s) {
+float neural_network(const float cart_pos, const float cart_vel, const float angle, const float dt_s) {
 	static bool first_run = true;
 	static float prev_angle = 0.0f;
 
@@ -237,5 +243,5 @@ SequenceStatus neural_network(const float cart_pos, const float cart_vel, const 
 	LOOP_LOG("cart_pos = %.6f,\tcart_vel = %.6f,\tpole_rot = %.6f,\tpole_vel = %.6f,\toutput = %.6f", cart_pos,
 	         cart_vel, angle, angular_vel, output->data.f[0]);
 
-	return SequenceStatus::RUNNING;
+	return output->data.f[0];
 }
