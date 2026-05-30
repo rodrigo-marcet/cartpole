@@ -4,7 +4,7 @@
 
 #include "./src/setup/LED_setup.h"
 
-#include "./src/policy_model.h"
+#include "./src/models/quantization.h"
 
 #include "./src/utils/tflite.h"
 #include "./src/utils/log_macros.h"
@@ -48,8 +48,8 @@ void init_tflite() {
 	BOOT_LOG("[TFLITE] Output dims: [%d, %d]\n", output->dims->data[0], output->dims->data[1]);
 
 	// --- Warm-up run ---
-	float dummy[4] = {0.1f, 0.05f, 0.0f, 0.0f};
-	for (int i = 0; i < 4; i++)
+	float dummy[5] = {0.1f, 0.05f, 0.0f, 0.0f, 0.1f};
+	for (int i = 0; i < 5; i++)
 		input->data.f[i] = dummy[i];
 	interpreter->Invoke();
 

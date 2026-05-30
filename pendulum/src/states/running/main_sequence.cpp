@@ -9,6 +9,10 @@
 #include "src/utils/tflite.h"
 
 constexpr int POSITION_PID_DECIMATION = 5;
+const float SCALER_MEAN[5] = {-0.06093934178352356, -0.053457941859960556, 0.005235779099166393, 0.9642264246940613,
+                              0.09907779842615128};
+const float SCALER_STD[5] = {0.009108875878155231, 0.2797383666038513, 0.03008274920284748, 0.040163472294807434,
+                             6.940155029296875};
 
 SequenceStatus main_sequence(MainSequenceState &current_state, const ODriveCalibrationResult &rail_limits,
                              const EncoderEstimatesResult &fb, const float inner_angle) {
@@ -64,6 +68,87 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const ODriveCalib
 		}
 		break;
 	}
+
+	case MainSequenceState::RAMP_UP_SPEED: {
+		static bool started = false;
+		static float elapsed = 0.0f;
+
+		if (!started) {
+			// odrv0.setTorque(-0.04f);  // fixed step, tune magnitude
+			started = true;
+		}
+
+		elapsed += dt_s;
+		float v_ms = fb.vel * 2 * PI * 0.01;
+		float pos_meters = (fb.pos - rail_limits.midpoint) * 2.0f * PI * 0.01f;
+
+		LOOP_LOG("[NN] angle = %.6f,\tposition = %.6f\n", inner_angle, pos_meters);
+
+		// Serial.println(String(elapsed, 6) + "," + String(v_ms, 6));
+
+		if (abs(v_ms) > 1.5f) {
+			odrv0.setTorque(0.0f);
+			started = false;
+			elapsed = 0.0f;
+			current_state = MainSequenceState::IDLE;
+		}
+
+		break;
+	}
+
+	// case MainSequenceState::RAMP_UP_SPEED: {
+	// 	static float torque = 0.0f;
+	// 	static float elapsed = 0.0f;
+
+	// 	elapsed += dt_s;
+	// 	torque = 0.005f * elapsed; // linear ramp: 0.005 Nm/s, tune this
+
+	// 	odrv0.setTorque(torque);
+	// 	float v_ms = fb.vel * 2 * PI * 0.01;
+
+	// 	Serial.println(String(dt_s) + ","
+	// 		+ String(torque, 6) + ","
+	// 		+ String(v_ms, 6));
+
+	// 	if (abs(v_ms) > 0.5f) {
+	// 		odrv0.setTorque(0.0f);
+	// 		torque = 0.0f;
+	// 		elapsed = 0.0f;
+	// 		current_state = MainSequenceState::IDLE;
+	// 	}
+
+	// 	// float velocity_rps = -15.91549762 * 1.0f;
+	// 	// odrv0.setVelocity(velocity_rps * 1.1);
+	// 	// // if (fb.pos >= rail_limits.midpoint) {
+	// 	// if (abs(fb.vel) > abs(velocity_rps + 0.1f)) {
+	// 	// 	LOOP_LOG("[RUNNING] [RAMP UP] velocity matches what we expected");
+	// 	// 	current_state = MainSequenceState::IDLE;
+	// 	// }
+	// 	break;
+	// }
+	case MainSequenceState::IDLE: {
+		if (!odrv0.setControllerMode(ODriveControlMode::CONTROL_MODE_TORQUE_CONTROL,
+		                             ODriveInputMode::INPUT_MODE_PASSTHROUGH)) {
+			LOOP_ERROR("[RUNNING] [MAIN] Switching to position control was not possible");
+			current_state = MainSequenceState::ERROR;
+		} else {
+			LOOP_LOG("[RUNNING] [MAIN] IDLE");
+			current_state = MainSequenceState::DONE;
+		}
+		break;
+	}
+	case MainSequenceState::COLLECT_DATA: {
+		float v_ms = fb.vel * 2 * PI * 0.01;
+		float pos_meters = (fb.pos - rail_limits.midpoint) * 2.0f * PI * 0.01f;
+
+		Serial.println(String(dt_s) + "," + String(pos_meters, 6) + "," + String(v_ms, 6));
+
+		if (abs(v_ms) < abs(0.05)) {
+			current_state = MainSequenceState::DONE;
+		}
+		break;
+	}
+
 	case MainSequenceState::MONITOR_AS5600: {
 
 		static unsigned long stable_since = 0;
@@ -71,9 +156,11 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const ODriveCalib
 		if (millis() - stable_since > 4000)
 			stable_since = millis();
 
-		float threshold = PI * 0.1;
+		float threshold = 0.1;
+		float cos_inner = cos(inner_angle);
 
-		if ((PI - threshold >= inner_angle) || (inner_angle >= PI + threshold))
+		// if ((PI - threshold >= inner_angle) || (inner_angle >= PI + threshold))
+		if (cos_inner < 0.8)
 			stable_since = millis();
 		else if (millis() - stable_since >= 3000) {
 			LOOP_LOG("PENDULUM IS STABLE AND UPRIGHT");
@@ -98,23 +185,28 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const ODriveCalib
 	}
 	case MainSequenceState::NEURAL_NETWORK: {
 		// auto t_pump = micros();
-		float normalized_pos =
-		    (fb.pos - rail_limits.lower_limit) / (rail_limits.upper_limit - rail_limits.lower_limit) - 0.5;
+		float pos_meters = (fb.pos - rail_limits.midpoint) * 2.0f * PI * 0.01f;
 		// float cos_angle = cos(inner_angle);
 		// float sin_angle = sin(inner_angle);
-		float force = neural_network(normalized_pos, fb.vel, inner_angle, dt_s);
-		// float torque = force * PULLEY_RADIUS;
-		// odrv0.setTorque(torque);
-		// LOOP_LOG("[PROF] neural_network: %.3f ms", (micros() - t_pump) / 1000.0);
+		float v_ms = fb.vel * 2 * PI * 0.01;
+
+		float force = -neural_network(-pos_meters, -v_ms, inner_angle, dt_s) * 40.0f;
+		const float PULLEY_RADIUS = 0.01f;
+		float torque = force * PULLEY_RADIUS;
+
+		LOOP_LOG("[NN] force = %.6f,\ttorque = %.6f\n", force, torque);
+
+		odrv0.setTorque(torque);
+
 		break;
 	}
 
 	case MainSequenceState::DONE: {
 		odrv0.setState(ODriveAxisState::AXIS_STATE_IDLE);
-		current_state = MainSequenceState::ENABLE_CONTROL_LOOP_CONTROL;
+		// current_state = MainSequenceState::ENABLE_CONTROL_LOOP_CONTROL;
 
 		LOOP_LOG("[RUNNING] [MAIN] DONE");
-		return SequenceStatus::DONE;
+		// return SequenceStatus::DONE;
 	}
 
 	case MainSequenceState::ERROR: {
@@ -212,9 +304,10 @@ SequenceStatus pendulum_pid(const float angle, const float dt_s, const float goa
 	float torque = p_term + d_term + i_term;
 	torque = std::clamp(torque, -max_torque, max_torque);
 
-	// LOOP_LOG("goal = %.2f,\tangle = %.2f,\ttorque = %.2f,\tp_term = %.2f,\td_term = %.2f,\ti_term = %.2f",
+	// LOOP_LOG("goal = %.6f,\tangle = %.6f,\ttorque = %.6f,\tp_term = %.6f,\td_term = %.6f,\ti_term = %.6f",
 	// goal_angle,
 	//          angle, torque, p_term, d_term, i_term);
+	LOOP_LOG("goal = %.6f,\tangle = %.6f,\ttorque = %.6f", goal_angle, angle, torque);
 
 	odrv0.setTorque(torque);
 
@@ -223,25 +316,49 @@ SequenceStatus pendulum_pid(const float angle, const float dt_s, const float goa
 
 float neural_network(const float cart_pos, const float cart_vel, const float angle, const float dt_s) {
 	static bool first_run = true;
-	static float prev_angle = 0.0f;
+	static float angle_prev = 0.0f;
 
 	if (first_run) {
-		prev_angle = angle;
+		angle_prev = angle;
 		first_run = false;
+		return 0.0f; // don't invoke the network yet
 	}
 
-	float angular_vel = (angle - prev_angle) / dt_s;
-	prev_angle = angle;
+	// float angular_vel = (angle - angle_prev) / dt_s;
 
-	input->data.f[0] = cart_pos;
-	input->data.f[1] = cart_vel;
-	input->data.f[2] = angle;
-	input->data.f[3] = angular_vel;
+	float cos_angle = cos(angle);
+	float sin_angle = sin(angle);
+	float cos_angle_prev = cos(angle_prev);
+	float sin_angle_prev = sin(angle_prev);
+	float angular_vel = ((sin_angle - sin_angle_prev) * cos_angle - (cos_angle - cos_angle_prev) * sin_angle) / dt_s;
+
+	angle_prev = angle;
+
+	// if(abs(angular_vel) > 10.0f)
+	// 	return 0.0f;
+	float obs[5] = {cart_pos, cart_vel, sin_angle, cos_angle, angular_vel};
+	scale_observations(obs);
+
+	input->data.f[0] = obs[0];
+	input->data.f[1] = obs[1];
+	input->data.f[2] = obs[2];
+	input->data.f[3] = obs[3];
+	input->data.f[4] = obs[4];
 
 	interpreter->Invoke();
 
-	LOOP_LOG("cart_pos = %.6f,\tcart_vel = %.6f,\tpole_rot = %.6f,\tpole_vel = %.6f,\toutput = %.6f", cart_pos,
-	         cart_vel, angle, angular_vel, output->data.f[0]);
+	LOOP_LOG("[FUNCTION] cart_pos = %.6f,\tcart_vel = %.6f,\tpole_rot = %.6f,\tpole_vel = %.6f", cart_pos, cart_vel,
+	         angle, angular_vel);
+	// LOOP_LOG("cos_angle = %.6f,\tsin_angle = %.6f,\tangle = %.6f,\toutput = %.6f",
+	// 	cos_angle, sin_angle, angle, output->data.f[0]);
+
+	// return std::clamp(output->data.f[0], -40.0f, 40.0f);
 
 	return output->data.f[0];
+}
+
+void scale_observations(float obs[5]) {
+	for (int i = 0; i < 5; i++) {
+		obs[i] = (obs[i] - SCALER_MEAN[i]) / (SCALER_STD[i] + 1e-8f);
+	}
 }

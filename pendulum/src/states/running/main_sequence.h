@@ -8,8 +8,11 @@ enum class MainSequenceState : uint8_t {
 	ENABLE_CONTROL_LOOP_CONTROL,
 	WAIT_FOR_CONTROL_LOOP_CONTROL,
 	ENABLE_TYPE_CONTROL,
-	SINUSOIDAL_POS,
-	POSITION_PID,
+	MOVE_TO_LIMIT,
+	RAMP_UP_SPEED,
+	IDLE,
+	COLLECT_DATA,
+
 	MONITOR_AS5600,
 	PENDULUM_PID,
 	NEURAL_NETWORK,
@@ -26,3 +29,5 @@ float position_pid(const float midpoint, const float current_pos, const float dt
 SequenceStatus pendulum_pid(const float as5600_rads, const float dt_s, const float goal_angle);
 
 float neural_network(const float cart_pos, const float cart_vel, const float as5600_rads, const float dt_s);
+
+void scale_observations(float obs[5]);
