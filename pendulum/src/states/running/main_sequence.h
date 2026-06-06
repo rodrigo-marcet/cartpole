@@ -12,6 +12,7 @@ enum class MainSequenceState : uint8_t {
 	RAMP_UP_SPEED,
 	IDLE,
 	COLLECT_DATA,
+	STATIC_FRICTION,
 
 	MONITOR_AS5600,
 	PENDULUM_PID,
@@ -26,8 +27,8 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const ODriveCalib
 
 float position_pid(const float midpoint, const float current_pos, const float dt_s);
 
-SequenceStatus pendulum_pid(const float as5600_rads, const float dt_s, const float goal_angle);
+SequenceStatus pendulum_pid(const float angle_rads, const float dt_s, const float goal_angle_rads);
 
-float neural_network(const float cart_pos, const float cart_vel, const float as5600_rads, const float dt_s);
+float neural_network(const float cart_pos_m, const float cart_vel_mps, const float angle_rads, const float dt_s);
 
 void scale_observations(float obs[5]);
