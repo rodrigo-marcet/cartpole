@@ -4,8 +4,6 @@
 
 #include "./src/setup/LED_setup.h"
 
-#include "./src/models/pos_0.3.h"
-
 #include "./src/utils/tflite.h"
 #include "./src/utils/log_macros.h"
 

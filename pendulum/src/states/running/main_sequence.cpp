@@ -10,8 +10,8 @@
 #include "src/config.h"
 
 // Input normalisation (running mean / variance from SKRL preprocessor)
-float input_mean[] = {0.03160070f, -0.04923343f, 0.00269673f, 0.97471118f, 0.13676924f};
-float input_var[] = {0.00872619f, 0.38674623f, 0.02406406f, 0.02587135f, 6.36017227f};
+// float MODEL_INPUT_MEAN[] = {0.03160070f, -0.04923343f, 0.00269673f, 0.97471118f, 0.13676924f};
+// float MODEL_INPUT_VAR[] = {0.00872619f, 0.38674623f, 0.02406406f, 0.02587135f, 6.36017227f};
 
 constexpr int POSITION_PID_DECIMATION = 5;
 
@@ -345,6 +345,6 @@ float neural_network(const float cart_pos_m, const float cart_vel_mps, const flo
 
 void scale_observations(float obs[5]) {
 	for (int i = 0; i < 5; i++) {
-		obs[i] = (obs[i] - input_mean[i]) / (sqrtf(input_var[i]) + 1e-8f);
+		obs[i] = (obs[i] - MODEL_INPUT_MEAN[i]) / (sqrtf(MODEL_INPUT_VAR[i]) + 1e-8f);
 	}
 }
