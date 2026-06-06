@@ -4,7 +4,7 @@
 
 #include "./src/setup/LED_setup.h"
 
-#include "./src/models/quantization.h"
+#include "./src/models/pos_0.3.h"
 
 #include "./src/utils/tflite.h"
 #include "./src/utils/log_macros.h"
@@ -26,11 +26,12 @@ void init_tflite() {
 
 	// Register only the ops this model uses
 	// ELU + FullyConnected (which covers MatMul+Add internally)
-	static tflite::MicroMutableOpResolver<4> resolver;
+	static tflite::MicroMutableOpResolver<5> resolver;
 	resolver.AddFullyConnected();
 	resolver.AddElu();
 	resolver.AddReshape();
 	resolver.AddQuantize(); // include just in case
+	resolver.AddTanh();
 
 	// Build interpreter
 	static tflite::MicroInterpreter static_interpreter(model, resolver, tensor_arena, kTensorArenaSize);

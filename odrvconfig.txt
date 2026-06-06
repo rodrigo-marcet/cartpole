@@ -1,0 +1,68 @@
+In [1]: odrv0.axis0.motor.config
+Out[1]:
+pre_calibrated = True (bool)
+pole_pairs = 7 (int)
+calibration_current = 5.0 (float)
+resistance_calib_max_voltage = 2.0 (float)
+phase_inductance = 0.00011785884998971596 (float)
+phase_resistance = 0.335024893283844 (float)
+torque_constant = 0.03999999910593033 (float)
+direction = 1 (int)
+motor_type = 0 (int)
+current_lim = 10.0 (float)
+current_lim_margin = 8.0 (float)
+torque_lim = inf (float)
+inverter_temp_limit_lower = 100.0 (float)
+inverter_temp_limit_upper = 120.0 (float)
+requested_current_range = 20.0 (float)
+current_control_bandwidth = 1000.0 (float)
+acim_slip_velocity = 14.706000328063965 (float)
+acim_gain_min_flux = 10.0 (float)
+acim_autoflux_min_Id = 10.0 (float)
+acim_autoflux_enable = False (bool)
+acim_autoflux_attack_gain = 10.0 (float)
+acim_autoflux_decay_gain = 1.0 (float)
+
+
+
+
+
+In [3]: odrv0.config
+Out[3]:
+enable_uart = True (bool)
+uart_baudrate = 115200 (int)
+enable_i2c_instead_of_can = False (bool)
+enable_ascii_protocol_on_usb = True (bool)
+max_regen_current = 0.0 (float)
+brake_resistance = 2.0 (float)
+dc_bus_undervoltage_trip_level = 10.0 (float)
+dc_bus_overvoltage_trip_level = 34.0 (float)
+enable_dc_bus_overvoltage_ramp = False (bool)
+dc_bus_overvoltage_ramp_start = 59.92000198364258 (float)
+dc_bus_overvoltage_ramp_end = 59.92000198364258 (float)
+dc_max_positive_current = 10.0 (float)
+dc_max_negative_current = -1.0 (float)
+gpio1_pwm_mapping:
+  endpoint = (0, 0) (RemoteProperty)
+  min = 0.0 (float)
+  max = 0.0 (float)
+gpio2_pwm_mapping:
+  endpoint = (0, 0) (RemoteProperty)
+  min = 0.0 (float)
+  max = 0.0 (float)
+gpio3_pwm_mapping:
+  endpoint = (0, 0) (RemoteProperty)
+  min = 0.0 (float)
+  max = 0.0 (float)
+gpio4_pwm_mapping:
+  endpoint = (0, 0) (RemoteProperty)
+  min = 0.0 (float)
+  max = 0.0 (float)
+gpio3_analog_mapping:
+  endpoint = (0, 0) (RemoteProperty)
+  min = 0.0 (float)
+  max = 0.0 (float)
+gpio4_analog_mapping:
+  endpoint = (0, 0) (RemoteProperty)
+  min = 0.0 (float)
+  max = 0.0 (float)

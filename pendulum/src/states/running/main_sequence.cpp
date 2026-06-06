@@ -8,11 +8,11 @@
 #include "src/utils/log_macros.h"
 #include "src/utils/tflite.h"
 
+// Input normalisation (running mean / variance from SKRL preprocessor)
+float input_mean[] = {0.03160070f, -0.04923343f, 0.00269673f, 0.97471118f, 0.13676924f};
+float input_var[] = {0.00872619f, 0.38674623f, 0.02406406f, 0.02587135f, 6.36017227f};
+
 constexpr int POSITION_PID_DECIMATION = 5;
-const float SCALER_MEAN[5] = {-0.06093934178352356, -0.053457941859960556, 0.005235779099166393, 0.9642264246940613,
-                              0.09907779842615128};
-const float SCALER_STD[5] = {0.009108875878155231, 0.2797383666038513, 0.03008274920284748, 0.040163472294807434,
-                             6.940155029296875};
 
 SequenceStatus main_sequence(MainSequenceState &current_state, const ODriveCalibrationResult &rail_limits,
                              const EncoderEstimatesResult &fb, const float inner_angle) {
@@ -28,9 +28,11 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const ODriveCalib
 	last_sample_time = t;
 
 	static unsigned long closed_loop_timeout = 0;
+	static float smoothed_action = 0.0f;
 
 	switch (current_state) {
 	case MainSequenceState::ENABLE_CONTROL_LOOP_CONTROL: {
+		smoothed_action = 0.0f;
 		odrv0.setState(ODriveAxisState::AXIS_STATE_CLOSED_LOOP_CONTROL);
 		closed_loop_timeout = millis();
 
@@ -184,13 +186,31 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const ODriveCalib
 		break;
 	}
 	case MainSequenceState::NEURAL_NETWORK: {
-		// auto t_pump = micros();
+
+		if (cos(inner_angle) < cos(PI / 2)) {
+			odrv0.setTorque(0.0f);
+			current_state = MainSequenceState::ERROR;
+
+			LOOP_LOG("[NN] pole fell down at angle: %.6f", inner_angle);
+			break;
+		}
+
+		// in your control loop:
+
 		float pos_meters = (fb.pos - rail_limits.midpoint) * 2.0f * PI * 0.01f;
-		// float cos_angle = cos(inner_angle);
-		// float sin_angle = sin(inner_angle);
+
 		float v_ms = fb.vel * 2 * PI * 0.01;
 
-		float force = -neural_network(-pos_meters, -v_ms, inner_angle, dt_s) * 40.0f;
+		// if(abs(v_ms) > 1.5f){
+		// 	odrv0.setTorque(0.0f);
+		// 	current_state = MainSequenceState::ERROR;
+
+		// 	LOOP_LOG("[NN] cart is moving way to fast: %.6f", v_ms);
+		// 	break;
+		// }
+
+		float force = -neural_network(-pos_meters, -v_ms, inner_angle, dt_s) * 40.0;
+
 		const float PULLEY_RADIUS = 0.01f;
 		float torque = force * PULLEY_RADIUS;
 
@@ -347,18 +367,19 @@ float neural_network(const float cart_pos, const float cart_vel, const float ang
 
 	interpreter->Invoke();
 
-	LOOP_LOG("[FUNCTION] cart_pos = %.6f,\tcart_vel = %.6f,\tpole_rot = %.6f,\tpole_vel = %.6f", cart_pos, cart_vel,
-	         angle, angular_vel);
-	// LOOP_LOG("cos_angle = %.6f,\tsin_angle = %.6f,\tangle = %.6f,\toutput = %.6f",
-	// 	cos_angle, sin_angle, angle, output->data.f[0]);
-
-	// return std::clamp(output->data.f[0], -40.0f, 40.0f);
+	LOOP_LOG("[FUNCTION] cart_pos = %.6f,\tcart_vel = %.6f,\tcos = %.5f,\tsin = %.5f,\tpole_vel = %.5f", cart_pos,
+	         cart_vel, cos_angle, sin_angle, angular_vel);
+	// LOOP_LOG("cos_angle = %.6f,\tsin_angle = %.6f,\tangle = %.6f,\tangular_velocity = %.6f",
+	// 	cos_angle, sin_angle, angle, angular_vel);
+	// Serial.println(String(dt_s, 3) + "," + String(cos_angle, 6) + "," + String(sin_angle, 6) + "," + String(angle,
+	// 6)+ "," + String(angular_vel, 6));
 
 	return output->data.f[0];
+	// return 0.0;
 }
 
 void scale_observations(float obs[5]) {
 	for (int i = 0; i < 5; i++) {
-		obs[i] = (obs[i] - SCALER_MEAN[i]) / (SCALER_STD[i] + 1e-8f);
+		obs[i] = (obs[i] - input_mean[i]) / (sqrtf(input_var[i]) + 1e-8f);
 	}
 }
