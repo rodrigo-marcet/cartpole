@@ -51,6 +51,7 @@ SequenceStatus setup_sequence(const EncoderEstimatesResult &fb, const ODriveCali
 		break;
 	}
 	case RunningSetupState::GO_TO_MID_POINT: {
+		// if (move_to_position(limits.upper_limit - 2.0, 6.0f, std::make_pair(10.0f, 10.0f))) {
 		if (move_to_position(limits.midpoint, 6.0f, std::make_pair(10.0f, 10.0f))) {
 			LOOP_LOG("[RUNNING] [SETUP] Reached midpoint successfully");
 

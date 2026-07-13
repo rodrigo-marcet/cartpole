@@ -9,10 +9,6 @@
 #include "src/utils/tflite.h"
 #include "src/config.h"
 
-// Input normalisation (running mean / variance from SKRL preprocessor)
-// float MODEL_INPUT_MEAN[] = {0.03160070f, -0.04923343f, 0.00269673f, 0.97471118f, 0.13676924f};
-// float MODEL_INPUT_VAR[] = {0.00872619f, 0.38674623f, 0.02406406f, 0.02587135f, 6.36017227f};
-
 constexpr int POSITION_PID_DECIMATION = 5;
 
 SequenceStatus main_sequence(MainSequenceState &current_state, const ODriveCalibrationResult &rail_limits,
@@ -68,6 +64,7 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const ODriveCalib
 		} else {
 			LOOP_LOG("[RUNNING] [MAIN] Position control set succesfully");
 			current_state = MainSequenceState::MONITOR_AS5600;
+			// current_state = MainSequenceState::COAST_DOWN_TEST;
 		}
 		break;
 	}
@@ -78,21 +75,23 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const ODriveCalib
 		if (millis() - stable_since_ms > 4000)
 			stable_since_ms = millis();
 
-		float threshold = 0.1;
+		float threshold = PI + 1;
 		float cos_inner = cos(inner_angle_rads);
 
-		// if ((PI - threshold >= inner_angle_rads) || (inner_angle_rads >= PI + threshold))
-		if (cos_inner < 0.8)
+		if (false)
 			stable_since_ms = millis();
 		else if (millis() - stable_since_ms >= 3000) {
 			LOOP_LOG("PENDULUM IS STABLE AND UPRIGHT");
-			current_state = MainSequenceState::NEURAL_NETWORK;
+			// current_state = MainSequenceState::NN_BALANCING;
+			current_state = MainSequenceState::NN_SWINGUP;
+			// current_state = MainSequenceState::MOTOR_CUVRE_TEST;
+			// current_state = MainSequenceState::BREAKAWAY_TEST;
 		}
 
 		break;
 	}
 
-	case MainSequenceState::PENDULUM_PID: {
+	case MainSequenceState::PID_BALANCING: {
 		static int call_count = 0;
 		static float goal_deviation = 0.0f;
 
@@ -105,21 +104,39 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const ODriveCalib
 
 		break;
 	}
-	case MainSequenceState::NEURAL_NETWORK: {
+	case MainSequenceState::NN_BALANCING: {
 
-		if (cos(inner_angle_rads) < cos(PI / 2)) {
+		float pos_m = (fb.pos - rail_limits.midpoint) * PULLEY_CIRCUMFERENCE_M;
+		float cart_v_mps = fb.vel * PULLEY_CIRCUMFERENCE_M;
+
+		if (cos(inner_angle_rads) < cos(PI / 2.0) || abs(pos_m) > 0.4) {
+			current_state = MainSequenceState::EMERGENCY_BRAKE;
 			odrv0.setTorque(0.0f);
-			current_state = MainSequenceState::ERROR;
-
-			LOOP_LOG("[NN] pole fell down at angle: %.6f", inner_angle_rads);
 			break;
 		}
 
-		float pos_m = (fb.pos - rail_limits.midpoint) * PULLEY_CIRCUMFERENCE_M;
+		float force_n = -neural_network(-pos_m, -cart_v_mps, inner_angle_rads, dt_s) * 40.0;
+		float torque_nm = force_n * PULLEY_RADIUS_M;
 
+		LOOP_LOG("[NN] force_n = %.6f,\ttorque_nm = %.6f\n", force_n, torque_nm);
+
+		odrv0.setTorque(torque_nm);
+
+		break;
+	}
+
+	case MainSequenceState::NN_SWINGUP: {
+
+		float pos_m = (fb.pos - rail_limits.midpoint) * PULLEY_CIRCUMFERENCE_M;
 		float cart_v_mps = fb.vel * PULLEY_CIRCUMFERENCE_M;
 
-		float force_n = -neural_network(-pos_m, -cart_v_mps, inner_angle_rads, dt_s) * 40.0;
+		if (abs(pos_m) > 0.3) {
+			current_state = MainSequenceState::EMERGENCY_BRAKE;
+			odrv0.setTorque(0.0f);
+			break;
+		}
+
+		float force_n = -neural_network(-pos_m, -cart_v_mps, inner_angle_rads, dt_s) * 30.0;
 
 		float torque_nm = force_n * PULLEY_RADIUS_M;
 
@@ -130,42 +147,7 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const ODriveCalib
 		break;
 	}
 
-	case MainSequenceState::RAMP_UP_SPEED: {
-		float rps_for_1_mps = 1.0f / PULLEY_CIRCUMFERENCE_M; // v_mps = rps * 2 * PI * radius
-		float velocity_rps = -rps_for_1_mps * 1.0f;
-		odrv0.setVelocity(velocity_rps * 1.1);
-
-		if (abs(fb.vel) > abs(velocity_rps + 0.1f)) {
-			LOOP_LOG("[RUNNING] [RAMP UP] velocity matches what we expected");
-			current_state = MainSequenceState::IDLE;
-		}
-		break;
-	}
-
-	case MainSequenceState::IDLE: {
-		if (!odrv0.setControllerMode(ODriveControlMode::CONTROL_MODE_TORQUE_CONTROL,
-		                             ODriveInputMode::INPUT_MODE_PASSTHROUGH)) {
-			LOOP_ERROR("[RUNNING] [MAIN] Switching to position control was not possible");
-			current_state = MainSequenceState::ERROR;
-		} else {
-			LOOP_LOG("[RUNNING] [MAIN] IDLE");
-			current_state = MainSequenceState::DONE;
-		}
-		break;
-	}
-	case MainSequenceState::COLLECT_DATA: {
-		float v_mps = fb.vel * PULLEY_CIRCUMFERENCE_M;
-		float pos_m = (fb.pos - rail_limits.midpoint) * PULLEY_CIRCUMFERENCE_M;
-
-		Serial.println(String(dt_s) + "," + String(pos_m, 6) + "," + String(v_mps, 6));
-
-		if (abs(v_mps) < abs(0.05)) {
-			current_state = MainSequenceState::DONE;
-		}
-		break;
-	}
-
-	case MainSequenceState::STATIC_FRICTION: {
+	case MainSequenceState::BREAKAWAY_TEST: {
 		static float torque_nm = 0.0f;
 		static float elapsed = 0.0f;
 
@@ -182,6 +164,77 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const ODriveCalib
 			torque_nm = 0.0f;
 			elapsed = 0.0f;
 			current_state = MainSequenceState::IDLE;
+		}
+
+		break;
+	}
+	case MainSequenceState::MOTOR_CUVRE_TEST: {
+		static float force_n = -30.0f;
+		static float torque_nm = force_n * PULLEY_RADIUS_M;
+
+		odrv0.setTorque(torque_nm);
+
+		float pos_m = (fb.pos - rail_limits.midpoint) * PULLEY_CIRCUMFERENCE_M;
+		float v_mps = fb.vel * PULLEY_CIRCUMFERENCE_M;
+
+		Serial.println(String(dt_s) + "," + String(torque_nm, 6) + "," + String(pos_m, 6) + "," + String(v_mps, 6) +
+		               "," + String(inner_angle_rads, 6));
+
+		if (pos_m < -0.25) {
+			odrv0.setTorque(-torque_nm * 2.0);
+			torque_nm = 0.0f;
+			current_state = MainSequenceState::EMERGENCY_BRAKE;
+		}
+
+		break;
+	}
+	case MainSequenceState::COAST_DOWN_TEST: {
+		float rps_for_1_mps = 1.0f / PULLEY_CIRCUMFERENCE_M; // v_mps = rps * 2 * PI * radius
+		float velocity_rps = -rps_for_1_mps * 1.5f;
+		odrv0.setVelocity(velocity_rps * 1.1);
+
+		if (abs(fb.vel) > abs(velocity_rps + 0.1f)) {
+			LOOP_LOG("[RUNNING] [RAMP UP] velocity matches what we expected");
+			current_state = MainSequenceState::IDLE;
+		}
+		break;
+	}
+	case MainSequenceState::IDLE: {
+		if (!odrv0.setControllerMode(ODriveControlMode::CONTROL_MODE_TORQUE_CONTROL,
+		                             ODriveInputMode::INPUT_MODE_PASSTHROUGH)) {
+			LOOP_ERROR("[RUNNING] [MAIN] Switching to position control was not possible");
+			current_state = MainSequenceState::ERROR;
+		} else {
+			LOOP_LOG("[RUNNING] [MAIN] IDLE");
+			current_state = MainSequenceState::COLLECT_DATA;
+		}
+		break;
+	}
+	case MainSequenceState::COLLECT_DATA: {
+		float v_mps = fb.vel * PULLEY_CIRCUMFERENCE_M;
+		float pos_m = (fb.pos - rail_limits.midpoint) * PULLEY_CIRCUMFERENCE_M;
+
+		Serial.println(String(dt_s) + "," + String(pos_m, 6) + "," + String(v_mps, 6));
+
+		if (abs(v_mps) < abs(0.05)) {
+			current_state = MainSequenceState::DONE;
+		}
+		break;
+	}
+
+	case MainSequenceState::EMERGENCY_BRAKE: {
+		static float force_n = 80.0f;
+		static float torque_nm = force_n * PULLEY_RADIUS_M;
+
+		float v_mps = fb.vel * PULLEY_CIRCUMFERENCE_M;
+
+		if (abs(v_mps) > 0.0) {
+			uint8_t sign = v_mps > 0.0 ? 1 : -1;
+			odrv0.setTorque(torque_nm * sign);
+		} else {
+			odrv0.setTorque(0.0);
+			torque_nm = 0.0f;
+			current_state = MainSequenceState::ERROR;
 		}
 
 		break;
@@ -231,7 +284,8 @@ float position_pid(const float midpoint_m, const float current_pos_m, const floa
 
 	prev_error = error;
 
-	float max_deviation = 0.2;
+	// float max_deviation = 0.2;
+	float max_deviation = 0.4;
 
 	static float integral = 0.0f;
 
@@ -254,7 +308,7 @@ float position_pid(const float midpoint_m, const float current_pos_m, const floa
 
 SequenceStatus pendulum_pid(const float angle_rads, const float dt_s, const float goal_angle_rads) {
 
-	float upright_offset = 0.05;
+	float upright_offset = 0.03;
 
 	static bool first_run = true;
 	static float prev_error = 0.0f;
@@ -274,7 +328,8 @@ SequenceStatus pendulum_pid(const float angle_rads, const float dt_s, const floa
 
 	prev_error = error;
 
-	float max_torque_nm = 5.0f;
+	// float max_torque_nm = 5.0f;
+	float max_torque_nm = 10.0f;
 
 	static float integral = 0.0f;
 
@@ -294,21 +349,25 @@ SequenceStatus pendulum_pid(const float angle_rads, const float dt_s, const floa
 	// goal_angle_rads,
 	//          angle_rads, torque_nm, p_term, d_term, i_term);
 	LOOP_LOG("goal = %.6f,\tangle = %.6f,\ttorque_nm = %.6f", goal_angle_rads, angle_rads, torque_nm);
+	// SequenceStatus status = pendulum_pid(rads_for_pid, dt_s, PI - goal_deviation);
 
 	odrv0.setTorque(torque_nm);
 
 	return SequenceStatus::RUNNING;
 }
 
-float neural_network(const float cart_pos_m, const float cart_vel_mps, const float angle_rads, const float dt_s) {
+float neural_network(const float cart_pos_m, const float cart_vel_mps, const float angle_rads2, const float dt_s) {
 	static bool first_run = true;
 	static float angle_prev = 0.0f;
 
 	if (first_run) {
-		angle_prev = angle_rads;
+		angle_prev = angle_rads2;
 		first_run = false;
 		return 0.0f; // don't invoke the network yet
 	}
+	float upright_offset = 0.03;
+
+	float angle_rads = angle_rads2 - upright_offset;
 
 	float cos_angle = cos(angle_rads);
 	float sin_angle = sin(angle_rads);
@@ -332,19 +391,24 @@ float neural_network(const float cart_pos_m, const float cart_vel_mps, const flo
 
 	interpreter->Invoke();
 
-	LOOP_LOG("[FUNCTION] cart_pos_m = %.6f,\tcart_vel_mps = %.6f,\tcos = %.5f,\tsin = %.5f,\tpole_vel_radps = %.5f",
-	         cart_pos_m, cart_vel_mps, cos_angle, sin_angle, angular_vel_radps);
-	// LOOP_LOG("cos_angle = %.6f,\tsin_angle = %.6f,\tangle = %.6f,\tangular_vel_radpsocity = %.6f",
-	// 	cos_angle, sin_angle, angle_rads, angular_vel_radps);
-	// Serial.println(String(dt_s, 3) + "," + String(cos_angle, 6) + "," + String(sin_angle, 6) + "," + String(angle,
-	// 6)+ "," + String(angular_vel_radps, 6));
+	LOOP_LOG("[FUNCTION] dt_s = %.6f, cart_pos_m = %.6f,\tcart_vel_mps = %.6f,\tcos = %.5f,\tsin = "
+	         "%.5f,\tpole_vel_radps = %.5f",
+	         dt_s, cart_pos_m, cart_vel_mps, cos_angle, sin_angle, angular_vel_radps);
+	// LOOP_LOG("[FUNCTION] dt_s = %.6f", dt_s);
 
 	return output->data.f[0];
 	// return 0.0;
 }
 
+// void scale_observations(float obs[5]) {
+// 	for (int i = 0; i < 5; i++) {
+// 		obs[i] = (obs[i] - MODEL_INPUT_MEAN[i]) / (sqrtf(MODEL_INPUT_VAR[i]) + 1e-8f);
+// 	}
+// }
+
 void scale_observations(float obs[5]) {
 	for (int i = 0; i < 5; i++) {
-		obs[i] = (obs[i] - MODEL_INPUT_MEAN[i]) / (sqrtf(MODEL_INPUT_VAR[i]) + 1e-8f);
+		float scaled = (obs[i] - MODEL_INPUT_MEAN[i]) / (sqrtf(MODEL_INPUT_VAR[i]) + 1e-8f);
+		obs[i] = fminf(fmaxf(scaled, -5.0), 5.0);
 	}
 }
