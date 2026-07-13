@@ -4,10 +4,9 @@
 #include "tensorflow/lite/micro/micro_mutable_op_resolver.h"
 #include "tensorflow/lite/micro/system_setup.h"
 #include "tensorflow/lite/schema/schema_generated.h"
-#include "./src/models/pos_0.3.h"
+#include "./src/models/swingup.h"
 
 constexpr int kTensorArenaSize = 16 * 1024; // 32 32
-// constexpr int kTensorArenaSize = 160 * 1024; // 256 128
 extern uint8_t tensor_arena[kTensorArenaSize];
 
 extern const tflite::Model *model;
