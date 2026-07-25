@@ -20,7 +20,6 @@ void setup() {
 	init_led();    // visual feedback
 	init_serial(); // debug first
 	init_i2c();    // bus before devices
-	// initEncoder();   // validates AS5600 presence //TODO
 	init_can();
 	init_odrive();
 	init_tflite();

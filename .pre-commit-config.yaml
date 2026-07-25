@@ -20,7 +20,7 @@ repos:
     hooks:
     -   id: arduino-compile
         name: Arduino Compile Check
-        entry: arduino-cli compile --fqbn esp32:esp32:esp32s3 ./pendulum
+        entry: arduino-cli compile --fqbn esp32:esp32:esp32s3 --clean ./pendulum
         language: system
         pass_filenames: false
         files: \.(ino|cpp|h)$

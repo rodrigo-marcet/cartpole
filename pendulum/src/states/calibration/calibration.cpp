@@ -10,11 +10,22 @@
 #include "src/utils/hfsm_types.h"
 
 SequenceStatus calibration_sequence(CalibrationResult *result) {
-	static CalibrationState current_state = CalibrationState::AS5600;
+	static CalibrationState current_state = CalibrationState::INNER_AS5600;
 
 	switch (current_state) {
-	case CalibrationState::AS5600: {
-		SequenceStatus status = as5600_calibration(&result->inner_encoder_result);
+	case CalibrationState::INNER_AS5600: {
+		SequenceStatus status = as5600_calibration(&result->inner_encoder_result, INNER_AS5600_IDX);
+
+		if (status == SequenceStatus::DONE) {
+			LOOP_LOG("[CALIBRATION] [AS5600] calibration DONE.\n");
+			current_state = CalibrationState::OUTER_AS5600;
+		} else if (status == SequenceStatus::ERROR) {
+			current_state = CalibrationState::ERROR;
+		}
+		break;
+	}
+	case CalibrationState::OUTER_AS5600: {
+		SequenceStatus status = as5600_calibration(&result->outer_encoder_result, OUTER_AS5600_IDX);
 
 		if (status == SequenceStatus::DONE) {
 			LOOP_LOG("[CALIBRATION] [AS5600] calibration DONE.\n");

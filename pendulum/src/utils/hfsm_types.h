@@ -19,4 +19,5 @@ struct AS5600CalibrationResult {
 struct CalibrationResult {
 	ODriveCalibrationResult odrive_result;
 	AS5600CalibrationResult inner_encoder_result;
+	AS5600CalibrationResult outer_encoder_result;
 };

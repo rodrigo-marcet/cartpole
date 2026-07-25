@@ -11,7 +11,7 @@ constexpr float STABILITY_DURATION_US = 5'000'000.0;
 constexpr float LOW_PASS_ALPHA = 0.5;
 constexpr float VELOCITY_THRESHOLD = 0.4; // rad/s
 
-SequenceStatus as5600_calibration(AS5600CalibrationResult *result) {
+SequenceStatus as5600_calibration(AS5600CalibrationResult *result, const uint16_t idx) {
 
 	static unsigned long last_sample_time = micros();
 	unsigned long t = micros();
@@ -34,7 +34,7 @@ SequenceStatus as5600_calibration(AS5600CalibrationResult *result) {
 
 	static unsigned long stable_since_us = 0;
 
-	int16_t raw_angle = as5600_read_raw();
+	int16_t raw_angle = as5600_read_raw(idx);
 	if (raw_angle == -1) {
 		LOOP_ERROR("[CALIBRATION] [AS5600] raw_angle read failed");
 		return SequenceStatus::ERROR;

@@ -24,7 +24,8 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 
 	auto t_pump = micros();
 	EncoderEstimatesResult fb = get_encoder_estimates();
-	double inner_encoder_rads = as5600_read_rads(calibration_result.inner_encoder_result.raw_offset);
+	double inner_encoder_rads = as5600_read_rads(calibration_result.inner_encoder_result.raw_offset, INNER_AS5600_IDX);
+	double outer_encoder_rads = as5600_read_rads(calibration_result.outer_encoder_result.raw_offset, OUTER_AS5600_IDX);
 
 	if (!fb.ok) {
 		LOOP_ERROR("Error reading fb at the guard clause of the running sequence");
