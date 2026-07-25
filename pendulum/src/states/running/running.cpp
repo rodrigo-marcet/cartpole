@@ -54,7 +54,8 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 
 		if (status == SequenceStatus::DONE) {
 			killswitch_active = false;
-			current_state = RunningState::single_pendulum;
+			current_state = RunningState::SINGLE_PENDULUM;
+			// current_state = RunningState::DOUBLE_PENDULUM;
 		} else if (status == SequenceStatus::ERROR) {
 			LOOP_LOG("[RUNNING] [SETUP] we got an error, diverging to error state");
 			current_state = RunningState::ERROR;
@@ -62,7 +63,7 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 		break;
 	}
 
-	case RunningState::single_pendulum: {
+	case RunningState::SINGLE_PENDULUM: {
 		SequenceStatus status =
 		    single_pendulum(single_pendulum_state, calibration_result.odrive_result, fb, inner_encoder_rads);
 
@@ -73,6 +74,19 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 		}
 		break;
 	}
+
+	case RunningState::DOUBLE_PENDULUM: {
+		SequenceStatus status = double_pendulum(double_pendulum_state, calibration_result.odrive_result, fb,
+		                                        inner_encoder_rads, outer_encoder_rads);
+
+		if (status == SequenceStatus::DONE) {
+			current_state = RunningState::DONE;
+		} else if (status == SequenceStatus::ERROR) {
+			current_state = RunningState::ERROR;
+		}
+		break;
+	}
+
 	case RunningState::KILLSWITCH: {
 		odrv0.setTorque(0.0f);
 		odrv0.setVelocity(0.0f);

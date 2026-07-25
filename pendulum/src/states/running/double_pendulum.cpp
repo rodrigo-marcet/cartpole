@@ -10,7 +10,8 @@
 #include "src/config.h"
 
 SequenceStatus double_pendulum(DoublePendulumState &current_state, const ODriveCalibrationResult &rail_limits,
-                               const EncoderEstimatesResult &fb, const float inner_angle_rads) {
+                               const EncoderEstimatesResult &fb, const float inner_angle_rads,
+                               const float outer_angle_rads) {
 
 	static unsigned long last_sample_time = 0;
 	unsigned long t = micros();
@@ -61,31 +62,33 @@ SequenceStatus double_pendulum(DoublePendulumState &current_state, const ODriveC
 			current_state = DoublePendulumState::ERROR;
 		} else {
 			LOOP_LOG("[RUNNING] [MAIN] Position control set succesfully");
-			// current_state = DoublePendulumState::MONITOR_AS5600;
-			current_state = DoublePendulumState::FREE_SWING;
+			current_state = DoublePendulumState::MONITOR_AS5600;
+			// current_state = DoublePendulumState::FREE_SWING;
 			// current_state = DoublePendulumState::COAST_DOWN_TEST;
 		}
 		break;
 	}
 
 	case DoublePendulumState::MONITOR_AS5600: {
-		static unsigned long stable_since_ms = 0;
+		// static unsigned long stable_since_ms = 0;
 
-		if (millis() - stable_since_ms > 4000)
-			stable_since_ms = millis();
+		// if (millis() - stable_since_ms > 4000)
+		// 	stable_since_ms = millis();
 
-		float threshold = PI + 1;
-		float cos_inner = cos(inner_angle_rads);
+		// float threshold = PI + 1;
+		// float cos_inner = cos(inner_angle_rads);
 
-		if (false)
-			stable_since_ms = millis();
-		else if (millis() - stable_since_ms >= 3000) {
-			LOOP_LOG("PENDULUM IS STABLE AND UPRIGHT");
-			// current_state = DoublePendulumState::NN_BALANCING;
-			current_state = DoublePendulumState::NN_SWINGUP;
-			// current_state = DoublePendulumState::MOTOR_CUVRE_TEST;
-			// current_state = DoublePendulumState::BREAKAWAY_TEST;
-		}
+		// if (false)
+		// 	stable_since_ms = millis();
+		// else if (millis() - stable_since_ms >= 3000) {
+		// 	LOOP_LOG("PENDULUM IS STABLE AND UPRIGHT");
+		// 	// current_state = DoublePendulumState::NN_BALANCING;
+		// 	current_state = DoublePendulumState::NN_SWINGUP;
+		// 	// current_state = DoublePendulumState::MOTOR_CUVRE_TEST;
+		// 	// current_state = DoublePendulumState::BREAKAWAY_TEST;
+		// }
+
+		LOOP_LOG("[AS5600] inner_angle = %.6f,\touter_angle = %.6f\n", inner_angle_rads, outer_angle_rads);
 
 		break;
 	}

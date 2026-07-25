@@ -26,7 +26,8 @@ enum class DoublePendulumState : uint8_t {
 };
 
 SequenceStatus double_pendulum(DoublePendulumState &current_state, const ODriveCalibrationResult &rail_limits,
-                               const EncoderEstimatesResult &fb, const float inner_encoder_rads);
+                               const EncoderEstimatesResult &fb, const float inner_encoder_rads,
+                               const float outer_encoder_rads);
 
 float double_pendulum_policy(const float cart_pos_m, const float cart_vel_mps, const float angle_rads,
                              const float dt_s);
