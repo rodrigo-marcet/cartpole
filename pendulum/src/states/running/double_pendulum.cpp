@@ -1,4 +1,4 @@
-#include "src/states/running/single_pendulum.h"
+#include "src/states/running/double_pendulum.h"
 
 #include <cmath>
 
@@ -9,9 +9,7 @@
 #include "src/utils/tflite.h"
 #include "src/config.h"
 
-constexpr int POSITION_PID_DECIMATION = 5;
-
-SequenceStatus single_pendulum(SinglePendulumState &current_state, const ODriveCalibrationResult &rail_limits,
+SequenceStatus double_pendulum(DoublePendulumState &current_state, const ODriveCalibrationResult &rail_limits,
                                const EncoderEstimatesResult &fb, const float inner_angle_rads) {
 
 	static unsigned long last_sample_time = 0;
@@ -28,20 +26,20 @@ SequenceStatus single_pendulum(SinglePendulumState &current_state, const ODriveC
 	static float smoothed_action = 0.0f;
 
 	switch (current_state) {
-	case SinglePendulumState::ENABLE_CONTROL_LOOP_CONTROL: {
+	case DoublePendulumState::ENABLE_CONTROL_LOOP_CONTROL: {
 		smoothed_action = 0.0f;
 		odrv0.setState(ODriveAxisState::AXIS_STATE_CLOSED_LOOP_CONTROL);
 		closed_loop_timeout = millis();
 
 		LOOP_LOG("[RUNNING] [MAIN] Enabling for closed loop control");
-		current_state = SinglePendulumState::WAIT_FOR_CONTROL_LOOP_CONTROL;
+		current_state = DoublePendulumState::WAIT_FOR_CONTROL_LOOP_CONTROL;
 
 		break;
 	}
-	case SinglePendulumState::WAIT_FOR_CONTROL_LOOP_CONTROL: {
+	case DoublePendulumState::WAIT_FOR_CONTROL_LOOP_CONTROL: {
 		if (millis() - closed_loop_timeout > 1000) {
 			LOOP_ERROR("[RUNNING] [MAIN] Closed loop control couldn't be enabled");
-			current_state = SinglePendulumState::ERROR;
+			current_state = DoublePendulumState::ERROR;
 			break;
 		}
 
@@ -51,26 +49,26 @@ SequenceStatus single_pendulum(SinglePendulumState &current_state, const ODriveC
 				LOOP_LOG("[RUNNING] [MAIN] Closed loop control enabled after waiting");
 				odrv0.setTorque(0.0f);
 				odrv0.setVelocity(0.0f);
-				current_state = SinglePendulumState::ENABLE_TYPE_CONTROL;
+				current_state = DoublePendulumState::ENABLE_TYPE_CONTROL;
 			}
 		}
 		break;
 	}
-	case SinglePendulumState::ENABLE_TYPE_CONTROL: {
+	case DoublePendulumState::ENABLE_TYPE_CONTROL: {
 		if (!odrv0.setControllerMode(ODriveControlMode::CONTROL_MODE_TORQUE_CONTROL,
 		                             ODriveInputMode::INPUT_MODE_PASSTHROUGH)) {
 			LOOP_ERROR("[RUNNING] [MAIN] Switching to position control was not possible");
-			current_state = SinglePendulumState::ERROR;
+			current_state = DoublePendulumState::ERROR;
 		} else {
 			LOOP_LOG("[RUNNING] [MAIN] Position control set succesfully");
-			// current_state = SinglePendulumState::MONITOR_AS5600;
-			current_state = SinglePendulumState::FREE_SWING;
-			// current_state = SinglePendulumState::COAST_DOWN_TEST;
+			// current_state = DoublePendulumState::MONITOR_AS5600;
+			current_state = DoublePendulumState::FREE_SWING;
+			// current_state = DoublePendulumState::COAST_DOWN_TEST;
 		}
 		break;
 	}
 
-	case SinglePendulumState::MONITOR_AS5600: {
+	case DoublePendulumState::MONITOR_AS5600: {
 		static unsigned long stable_since_ms = 0;
 
 		if (millis() - stable_since_ms > 4000)
@@ -83,40 +81,27 @@ SequenceStatus single_pendulum(SinglePendulumState &current_state, const ODriveC
 			stable_since_ms = millis();
 		else if (millis() - stable_since_ms >= 3000) {
 			LOOP_LOG("PENDULUM IS STABLE AND UPRIGHT");
-			// current_state = SinglePendulumState::NN_BALANCING;
-			current_state = SinglePendulumState::NN_SWINGUP;
-			// current_state = SinglePendulumState::MOTOR_CUVRE_TEST;
-			// current_state = SinglePendulumState::BREAKAWAY_TEST;
+			// current_state = DoublePendulumState::NN_BALANCING;
+			current_state = DoublePendulumState::NN_SWINGUP;
+			// current_state = DoublePendulumState::MOTOR_CUVRE_TEST;
+			// current_state = DoublePendulumState::BREAKAWAY_TEST;
 		}
 
 		break;
 	}
 
-	case SinglePendulumState::PID_BALANCING: {
-		static int call_count = 0;
-		static float goal_deviation = 0.0f;
-
-		if (call_count % POSITION_PID_DECIMATION == 0) {
-			goal_deviation = position_pid(rail_limits.midpoint, fb.pos, dt_s * POSITION_PID_DECIMATION);
-		}
-		call_count++;
-
-		SequenceStatus status = pendulum_pid(inner_angle_rads, dt_s, PI - goal_deviation);
-
-		break;
-	}
-	case SinglePendulumState::NN_BALANCING: {
+	case DoublePendulumState::NN_BALANCING: {
 
 		float pos_m = (fb.pos - rail_limits.midpoint) * PULLEY_CIRCUMFERENCE_M;
 		float cart_v_mps = fb.vel * PULLEY_CIRCUMFERENCE_M;
 
 		if (cos(inner_angle_rads) < cos(PI / 2.0) || abs(pos_m) > 0.4) {
-			current_state = SinglePendulumState::EMERGENCY_BRAKE;
+			current_state = DoublePendulumState::EMERGENCY_BRAKE;
 			odrv0.setTorque(0.0f);
 			break;
 		}
 
-		float force_n = -single_pendulum_policy(-pos_m, -cart_v_mps, inner_angle_rads, dt_s) * 40.0;
+		float force_n = -double_pendulum_policy(-pos_m, -cart_v_mps, inner_angle_rads, dt_s) * 40.0;
 		float torque_nm = force_n * PULLEY_RADIUS_M;
 
 		LOOP_LOG("[NN] force_n = %.6f,\ttorque_nm = %.6f\n", force_n, torque_nm);
@@ -126,18 +111,18 @@ SequenceStatus single_pendulum(SinglePendulumState &current_state, const ODriveC
 		break;
 	}
 
-	case SinglePendulumState::NN_SWINGUP: {
+	case DoublePendulumState::NN_SWINGUP: {
 
 		float pos_m = (fb.pos - rail_limits.midpoint) * PULLEY_CIRCUMFERENCE_M;
 		float cart_v_mps = fb.vel * PULLEY_CIRCUMFERENCE_M;
 
 		if (abs(pos_m) > 0.35) {
-			current_state = SinglePendulumState::EMERGENCY_BRAKE;
+			current_state = DoublePendulumState::EMERGENCY_BRAKE;
 			odrv0.setTorque(0.0f);
 			break;
 		}
 
-		float force_n = -single_pendulum_policy(-pos_m, -cart_v_mps, inner_angle_rads, dt_s) * 40.0;
+		float force_n = -double_pendulum_policy(-pos_m, -cart_v_mps, inner_angle_rads, dt_s) * 40.0;
 
 		float torque_nm = force_n * PULLEY_RADIUS_M;
 
@@ -148,7 +133,7 @@ SequenceStatus single_pendulum(SinglePendulumState &current_state, const ODriveC
 		break;
 	}
 
-	case SinglePendulumState::BREAKAWAY_TEST: {
+	case DoublePendulumState::BREAKAWAY_TEST: {
 		static float torque_nm = 0.0f;
 		static float elapsed = 0.0f;
 
@@ -164,12 +149,12 @@ SequenceStatus single_pendulum(SinglePendulumState &current_state, const ODriveC
 			odrv0.setTorque(0.0f);
 			torque_nm = 0.0f;
 			elapsed = 0.0f;
-			current_state = SinglePendulumState::IDLE;
+			current_state = DoublePendulumState::IDLE;
 		}
 
 		break;
 	}
-	case SinglePendulumState::MOTOR_CUVRE_TEST: {
+	case DoublePendulumState::MOTOR_CUVRE_TEST: {
 		static float force_n = -30.0f;
 		static float torque_nm = force_n * PULLEY_RADIUS_M;
 
@@ -184,45 +169,45 @@ SequenceStatus single_pendulum(SinglePendulumState &current_state, const ODriveC
 		if (pos_m < -0.25) {
 			odrv0.setTorque(-torque_nm * 2.0);
 			torque_nm = 0.0f;
-			current_state = SinglePendulumState::EMERGENCY_BRAKE;
+			current_state = DoublePendulumState::EMERGENCY_BRAKE;
 		}
 
 		break;
 	}
-	case SinglePendulumState::COAST_DOWN_TEST: {
+	case DoublePendulumState::COAST_DOWN_TEST: {
 		float rps_for_1_mps = 1.0f / PULLEY_CIRCUMFERENCE_M; // v_mps = rps * 2 * PI * radius
 		float velocity_rps = -rps_for_1_mps * 1.5f;
 		odrv0.setVelocity(velocity_rps * 1.1);
 
 		if (abs(fb.vel) > abs(velocity_rps + 0.1f)) {
 			LOOP_LOG("[RUNNING] [RAMP UP] velocity matches what we expected");
-			current_state = SinglePendulumState::IDLE;
+			current_state = DoublePendulumState::IDLE;
 		}
 		break;
 	}
-	case SinglePendulumState::IDLE: {
+	case DoublePendulumState::IDLE: {
 		if (!odrv0.setControllerMode(ODriveControlMode::CONTROL_MODE_TORQUE_CONTROL,
 		                             ODriveInputMode::INPUT_MODE_PASSTHROUGH)) {
 			LOOP_ERROR("[RUNNING] [MAIN] Switching to position control was not possible");
-			current_state = SinglePendulumState::ERROR;
+			current_state = DoublePendulumState::ERROR;
 		} else {
 			LOOP_LOG("[RUNNING] [MAIN] IDLE");
-			current_state = SinglePendulumState::COLLECT_DATA;
+			current_state = DoublePendulumState::COLLECT_DATA;
 		}
 		break;
 	}
-	case SinglePendulumState::COLLECT_DATA: {
+	case DoublePendulumState::COLLECT_DATA: {
 		float v_mps = fb.vel * PULLEY_CIRCUMFERENCE_M;
 		float pos_m = (fb.pos - rail_limits.midpoint) * PULLEY_CIRCUMFERENCE_M;
 
 		Serial.println(String(dt_s) + "," + String(pos_m, 6) + "," + String(v_mps, 6));
 
 		if (abs(v_mps) < abs(0.05)) {
-			current_state = SinglePendulumState::DONE;
+			current_state = DoublePendulumState::DONE;
 		}
 		break;
 	}
-	case SinglePendulumState::FREE_SWING: {
+	case DoublePendulumState::FREE_SWING: {
 		static bool first_pass = true;
 		static float inner_angle_prev = 0.0f;
 
@@ -248,7 +233,7 @@ SequenceStatus single_pendulum(SinglePendulumState &current_state, const ODriveC
 		break;
 	}
 
-	case SinglePendulumState::EMERGENCY_BRAKE: {
+	case DoublePendulumState::EMERGENCY_BRAKE: {
 		float v_mps = fb.vel * PULLEY_CIRCUMFERENCE_M;
 		float pos_m = (fb.pos - rail_limits.midpoint) * PULLEY_CIRCUMFERENCE_M;
 
@@ -264,29 +249,29 @@ SequenceStatus single_pendulum(SinglePendulumState &current_state, const ODriveC
 		} else {
 			odrv0.setTorque(0.0);
 			torque_nm = 0.0f;
-			current_state = SinglePendulumState::ERROR;
+			current_state = DoublePendulumState::ERROR;
 		}
 
 		break;
 	}
 
-	case SinglePendulumState::DONE: {
+	case DoublePendulumState::DONE: {
 		odrv0.setState(ODriveAxisState::AXIS_STATE_IDLE);
-		current_state = SinglePendulumState::ENABLE_CONTROL_LOOP_CONTROL;
+		current_state = DoublePendulumState::ENABLE_CONTROL_LOOP_CONTROL;
 
 		LOOP_LOG("[RUNNING] [MAIN] DONE");
 		// return SequenceStatus::DONE;
 	}
 
-	case SinglePendulumState::ERROR: {
+	case DoublePendulumState::ERROR: {
 		odrv0.setState(ODriveAxisState::AXIS_STATE_IDLE);
-		current_state = SinglePendulumState::ENABLE_CONTROL_LOOP_CONTROL;
+		current_state = DoublePendulumState::ENABLE_CONTROL_LOOP_CONTROL;
 		return SequenceStatus::ERROR;
 	}
 
 	default: {
 		LOOP_ERROR("[RUNNING] [MAIN] Unexpected setup state: %d", (int)current_state);
-		current_state = SinglePendulumState::ERROR;
+		current_state = DoublePendulumState::ERROR;
 		break;
 	}
 	}
@@ -294,99 +279,7 @@ SequenceStatus single_pendulum(SinglePendulumState &current_state, const ODriveC
 	return SequenceStatus::RUNNING;
 }
 
-float position_pid(const float midpoint_m, const float current_pos_m, const float dt_s) {
-
-	static bool first_run = true;
-	static float prev_error = 0.0f;
-
-	float error = midpoint_m - current_pos_m;
-
-	float p_gain = 0.044;
-	float p_term = error * p_gain;
-
-	if (first_run) {
-		prev_error = error;
-		first_run = false;
-	}
-
-	float d_gain = 0.012; // best 0.011
-	float d_term = (error - prev_error) / dt_s * d_gain;
-
-	prev_error = error;
-
-	// float max_deviation = 0.2;
-	float max_deviation = 0.4;
-
-	static float integral = 0.0f;
-
-	integral += error * dt_s;
-
-	float i_gain = 0.05;
-	float i_term = integral * i_gain;
-
-	i_term = std::clamp(i_term, -max_deviation, max_deviation);
-
-	// float deviation = p_term + d_term + i_term;
-	float deviation = p_term + d_term;
-	deviation = std::clamp(deviation, -max_deviation, max_deviation);
-
-	LOOP_LOG("goal = %.2f,\tpos = %.2f,\tdeviation = %.2f,\tp_term = %.2f,\td_term = %.2f,\ti_term = %.2f", midpoint_m,
-	         current_pos_m, deviation, p_term, d_term, i_term);
-
-	return deviation;
-}
-
-SequenceStatus pendulum_pid(const float angle_rads, const float dt_s, const float goal_angle_rads) {
-
-	float upright_offset = 0.03;
-
-	static bool first_run = true;
-	static float prev_error = 0.0f;
-
-	float error = (goal_angle_rads + upright_offset) - angle_rads;
-
-	float p_gain = 0.8;
-	float p_term = error * p_gain;
-
-	if (first_run) {
-		prev_error = error;
-		first_run = false;
-	}
-
-	float d_gain = 0.03;
-	float d_term = (error - prev_error) / dt_s * d_gain;
-
-	prev_error = error;
-
-	// float max_torque_nm = 5.0f;
-	float max_torque_nm = 10.0f;
-
-	static float integral = 0.0f;
-
-	integral += error * dt_s;
-
-	float i_gain = 0.3;
-	float max_integral = max_torque_nm / i_gain;
-	integral = std::clamp(integral, -max_integral, max_integral);
-
-	float i_term = integral * i_gain;
-	i_term = std::clamp(i_term, -max_torque_nm, max_torque_nm);
-
-	float torque_nm = p_term + d_term + i_term;
-	torque_nm = std::clamp(torque_nm, -max_torque_nm, max_torque_nm);
-
-	// LOOP_LOG("goal = %.6f,\tangle = %.6f,\ttorque_nm = %.6f,\tp_term = %.6f,\td_term = %.6f,\ti_term = %.6f",
-	// goal_angle_rads,
-	//          angle_rads, torque_nm, p_term, d_term, i_term);
-	LOOP_LOG("goal = %.6f,\tangle = %.6f,\ttorque_nm = %.6f", goal_angle_rads, angle_rads, torque_nm);
-	// SequenceStatus status = pendulum_pid(rads_for_pid, dt_s, PI - goal_deviation);
-
-	odrv0.setTorque(torque_nm);
-
-	return SequenceStatus::RUNNING;
-}
-
-float single_pendulum_policy(const float cart_pos_m, const float cart_vel_mps, const float angle_rads2,
+float double_pendulum_policy(const float cart_pos_m, const float cart_vel_mps, const float angle_rads2,
                              const float dt_s) {
 	static bool first_run = true;
 	static float angle_prev = 0.0f;
@@ -394,8 +287,9 @@ float single_pendulum_policy(const float cart_pos_m, const float cart_vel_mps, c
 	if (first_run) {
 		angle_prev = angle_rads2;
 		first_run = false;
-		return 0.0f; // don't invoke the network yet
+		return 0.0f;
 	}
+
 	float upright_offset = 0.03;
 
 	float angle_rads = angle_rads2 - upright_offset;
@@ -409,8 +303,6 @@ float single_pendulum_policy(const float cart_pos_m, const float cart_vel_mps, c
 
 	angle_prev = angle_rads;
 
-	// if(abs(angular_vel_radps) > 10.0f)
-	// 	return 0.0f;
 	float obs[5] = {cart_pos_m, cart_vel_mps, sin_angle, cos_angle, angular_vel_radps};
 	scale_observations(obs, 5);
 
@@ -425,8 +317,6 @@ float single_pendulum_policy(const float cart_pos_m, const float cart_vel_mps, c
 	LOOP_LOG("[FUNCTION] dt_s = %.6f, cart_pos_m = %.6f,\tcart_vel_mps = %.6f,\tcos = %.5f,\tsin = "
 	         "%.5f,\tpole_vel_radps = %.5f",
 	         dt_s, cart_pos_m, cart_vel_mps, cos_angle, sin_angle, angular_vel_radps);
-	// LOOP_LOG("[FUNCTION] dt_s = %.6f", dt_s);
 
 	return output->data.f[0];
-	// return 0.0;
 }

@@ -5,6 +5,7 @@
 
 #include "src/states/running/setup_state.h"
 #include "src/states/running/single_pendulum.h"
+#include "src/states/running/double_pendulum.h"
 
 #include "src/utils/odrive_types.h"
 #include "src/utils/as5600.h"
@@ -14,7 +15,8 @@
 SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 	static RunningState current_state = RunningState::SETUP;
 
-	static MainSequenceState single_pendulum_state = MainSequenceState::ENABLE_CONTROL_LOOP_CONTROL;
+	static SinglePendulumState single_pendulum_state = SinglePendulumState::ENABLE_CONTROL_LOOP_CONTROL;
+	static DoublePendulumState double_pendulum_state = DoublePendulumState::ENABLE_CONTROL_LOOP_CONTROL;
 
 	const ODriveCalibrationResult &limits = calibration_result.odrive_result;
 
@@ -75,7 +77,8 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 		odrv0.setVelocity(0.0f);
 		odrv0.setState(ODriveAxisState::AXIS_STATE_IDLE);
 
-		single_pendulum_state = MainSequenceState::ENABLE_CONTROL_LOOP_CONTROL;
+		single_pendulum_state = SinglePendulumState::ENABLE_CONTROL_LOOP_CONTROL;
+		single_pendulum_state = SinglePendulumState::ENABLE_CONTROL_LOOP_CONTROL;
 		current_state = RunningState::SETUP;
 		break;
 	}

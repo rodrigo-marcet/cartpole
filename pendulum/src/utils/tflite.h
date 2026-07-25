@@ -13,3 +13,5 @@ extern const tflite::Model *model;
 extern tflite::MicroInterpreter *interpreter;
 extern TfLiteTensor *input;
 extern TfLiteTensor *output;
+
+void scale_observations(float *obs, const int n);
