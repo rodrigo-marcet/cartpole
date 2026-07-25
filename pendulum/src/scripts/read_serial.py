@@ -6,7 +6,7 @@ from datetime import datetime
 # =========================================================
 
 SERIAL_PORT = "COM3"      # Change to your Arduino port
-BAUD_RATE = 115200        # Must match Serial.begin(...)
+BAUD_RATE = 2000000        # Must match Serial.begin(...)
 OUTPUT_FILE = "arduino_log.txt"
 
 # =========================================================

@@ -63,7 +63,8 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const ODriveCalib
 			current_state = MainSequenceState::ERROR;
 		} else {
 			LOOP_LOG("[RUNNING] [MAIN] Position control set succesfully");
-			current_state = MainSequenceState::MONITOR_AS5600;
+			// current_state = MainSequenceState::MONITOR_AS5600;
+			current_state = MainSequenceState::FREE_SWING;
 			// current_state = MainSequenceState::COAST_DOWN_TEST;
 		}
 		break;
@@ -130,13 +131,13 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const ODriveCalib
 		float pos_m = (fb.pos - rail_limits.midpoint) * PULLEY_CIRCUMFERENCE_M;
 		float cart_v_mps = fb.vel * PULLEY_CIRCUMFERENCE_M;
 
-		if (abs(pos_m) > 0.3) {
+		if (abs(pos_m) > 0.35) {
 			current_state = MainSequenceState::EMERGENCY_BRAKE;
 			odrv0.setTorque(0.0f);
 			break;
 		}
 
-		float force_n = -neural_network(-pos_m, -cart_v_mps, inner_angle_rads, dt_s) * 30.0;
+		float force_n = -neural_network(-pos_m, -cart_v_mps, inner_angle_rads, dt_s) * 40.0;
 
 		float torque_nm = force_n * PULLEY_RADIUS_M;
 
@@ -221,16 +222,45 @@ SequenceStatus main_sequence(MainSequenceState &current_state, const ODriveCalib
 		}
 		break;
 	}
+	case MainSequenceState::FREE_SWING: {
+		static bool first_pass = true;
+		static float inner_angle_prev = 0.0f;
+
+		if (first_pass) {
+			inner_angle_prev = inner_angle_rads;
+			Serial.println("time_s,pole_cos,pole_sin,pole_angle_rad,pole_vel_radps");
+			first_pass = false;
+			break;
+		}
+
+		float cos_angle = cos(inner_angle_rads);
+		float sin_angle = sin(inner_angle_rads);
+		float cos_inner_angle_prev = cos(inner_angle_prev);
+		float sin_inner_angle_prev = sin(inner_angle_prev);
+		float angular_vel_radps =
+		    ((sin_angle - sin_inner_angle_prev) * cos_angle - (cos_angle - cos_inner_angle_prev) * sin_angle) / dt_s;
+
+		inner_angle_prev = inner_angle_rads;
+
+		Serial.println(String(dt_s) + "," + String(cos_angle, 6) + "," + String(sin_angle, 6) + "," +
+		               String(inner_angle_rads, 6) + "," + String(angular_vel_radps, 6));
+
+		break;
+	}
 
 	case MainSequenceState::EMERGENCY_BRAKE: {
-		static float force_n = 80.0f;
+		float v_mps = fb.vel * PULLEY_CIRCUMFERENCE_M;
+		float pos_m = (fb.pos - rail_limits.midpoint) * PULLEY_CIRCUMFERENCE_M;
+
+		int8_t sign = v_mps > 0.0 ? -1 : 1;
+
+		static float force_n = 80.0f * sign;
 		static float torque_nm = force_n * PULLEY_RADIUS_M;
 
-		float v_mps = fb.vel * PULLEY_CIRCUMFERENCE_M;
+		LOOP_LOG("[RUNNING] [EMERGENCY_BRAKE] v_mps = %.6f,\t force_n = %.6f", v_mps, force_n);
 
-		if (abs(v_mps) > 0.0) {
-			uint8_t sign = v_mps > 0.0 ? 1 : -1;
-			odrv0.setTorque(torque_nm * sign);
+		if (abs(v_mps) > 0.0 && abs(pos_m) > 0.3) {
+			odrv0.setTorque(torque_nm);
 		} else {
 			odrv0.setTorque(0.0);
 			torque_nm = 0.0f;

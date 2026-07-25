@@ -19,6 +19,7 @@ enum class MainSequenceState : uint8_t {
 	COAST_DOWN_TEST,
 	IDLE,
 	COLLECT_DATA,
+	FREE_SWING,
 
 	EMERGENCY_BRAKE,
 	DONE = 254,
