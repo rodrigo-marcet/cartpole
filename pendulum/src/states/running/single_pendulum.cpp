@@ -1,4 +1,4 @@
-#include "src/states/running/main_sequence.h"
+#include "src/states/running/single_pendulum.h"
 
 #include <cmath>
 
@@ -11,8 +11,8 @@
 
 constexpr int POSITION_PID_DECIMATION = 5;
 
-SequenceStatus main_sequence(MainSequenceState &current_state, const ODriveCalibrationResult &rail_limits,
-                             const EncoderEstimatesResult &fb, const float inner_angle_rads) {
+SequenceStatus single_pendulum(MainSequenceState &current_state, const ODriveCalibrationResult &rail_limits,
+                               const EncoderEstimatesResult &fb, const float inner_angle_rads) {
 
 	static unsigned long last_sample_time = 0;
 	unsigned long t = micros();

@@ -4,7 +4,7 @@
 #include <Wire.h>
 
 #include "src/states/running/setup_state.h"
-#include "src/states/running/main_sequence.h"
+#include "src/states/running/single_pendulum.h"
 
 #include "src/utils/odrive_types.h"
 #include "src/utils/as5600.h"
@@ -14,7 +14,7 @@
 SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 	static RunningState current_state = RunningState::SETUP;
 
-	static MainSequenceState main_sequence_state = MainSequenceState::ENABLE_CONTROL_LOOP_CONTROL;
+	static MainSequenceState single_pendulum_state = MainSequenceState::ENABLE_CONTROL_LOOP_CONTROL;
 
 	const ODriveCalibrationResult &limits = calibration_result.odrive_result;
 
@@ -51,7 +51,7 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 
 		if (status == SequenceStatus::DONE) {
 			killswitch_active = false;
-			current_state = RunningState::MAIN_SEQUENCE;
+			current_state = RunningState::single_pendulum;
 		} else if (status == SequenceStatus::ERROR) {
 			LOOP_LOG("[RUNNING] [SETUP] we got an error, diverging to error state");
 			current_state = RunningState::ERROR;
@@ -59,9 +59,9 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 		break;
 	}
 
-	case RunningState::MAIN_SEQUENCE: {
+	case RunningState::single_pendulum: {
 		SequenceStatus status =
-		    main_sequence(main_sequence_state, calibration_result.odrive_result, fb, inner_encoder_rads);
+		    single_pendulum(single_pendulum_state, calibration_result.odrive_result, fb, inner_encoder_rads);
 
 		if (status == SequenceStatus::DONE) {
 			current_state = RunningState::DONE;
@@ -75,7 +75,7 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 		odrv0.setVelocity(0.0f);
 		odrv0.setState(ODriveAxisState::AXIS_STATE_IDLE);
 
-		main_sequence_state = MainSequenceState::ENABLE_CONTROL_LOOP_CONTROL;
+		single_pendulum_state = MainSequenceState::ENABLE_CONTROL_LOOP_CONTROL;
 		current_state = RunningState::SETUP;
 		break;
 	}

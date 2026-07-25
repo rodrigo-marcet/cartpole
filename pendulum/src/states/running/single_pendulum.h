@@ -26,8 +26,8 @@ enum class MainSequenceState : uint8_t {
 	ERROR = 255,
 };
 
-SequenceStatus main_sequence(MainSequenceState &current_state, const ODriveCalibrationResult &rail_limits,
-                             const EncoderEstimatesResult &fb, const float inner_encoder_rads);
+SequenceStatus single_pendulum(MainSequenceState &current_state, const ODriveCalibrationResult &rail_limits,
+                               const EncoderEstimatesResult &fb, const float inner_encoder_rads);
 
 float position_pid(const float midpoint, const float current_pos, const float dt_s);
 
