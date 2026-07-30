@@ -27,6 +27,12 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 	double inner_encoder_rads = as5600_read_rads(calibration_result.inner_encoder_result.raw_offset, INNER_AS5600_IDX);
 	double outer_encoder_rads = as5600_read_rads(calibration_result.outer_encoder_result.raw_offset, OUTER_AS5600_IDX);
 
+	inner_encoder_rads = inner_encoder_rads - PI;
+	if (inner_encoder_rads < -PI)
+		inner_encoder_rads += 2.0 * PI;
+	if (inner_encoder_rads > PI)
+		inner_encoder_rads -= 2.0 * PI;
+
 	if (!fb.ok) {
 		LOOP_ERROR("Error reading fb at the guard clause of the running sequence");
 		current_state = RunningState::ERROR;
@@ -54,8 +60,8 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 
 		if (status == SequenceStatus::DONE) {
 			killswitch_active = false;
-			current_state = RunningState::SINGLE_PENDULUM;
-			// current_state = RunningState::DOUBLE_PENDULUM;
+			// current_state = RunningState::SINGLE_PENDULUM;
+			current_state = RunningState::DOUBLE_PENDULUM;
 		} else if (status == SequenceStatus::ERROR) {
 			LOOP_LOG("[RUNNING] [SETUP] we got an error, diverging to error state");
 			current_state = RunningState::ERROR;

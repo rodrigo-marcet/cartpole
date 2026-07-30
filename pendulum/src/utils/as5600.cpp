@@ -27,12 +27,5 @@ float as5600_read_rads(float offset, const uint16_t idx) {
 
 	float angle = adjusted * (2.0 * PI / 4096.0);
 
-	// Shift so upright=0, down=±π (matches Isaac Lab convention)
-	angle = angle - PI;
-	if (angle < -PI)
-		angle += 2.0 * PI;
-	if (angle > PI)
-		angle -= 2.0 * PI;
-
 	return angle;
 }

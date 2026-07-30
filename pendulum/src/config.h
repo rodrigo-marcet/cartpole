@@ -8,8 +8,8 @@
 
 #define INNER_I2C_SDA_PIN 15
 #define INNER_I2C_SCL_PIN 16
-#define OUTER_I2C_SDA_PIN 9
-#define OUTER_I2C_SCL_PIN 10
+#define OUTER_I2C_SDA_PIN 10
+#define OUTER_I2C_SCL_PIN 9
 #define CAN_TX_PIN 4
 #define CAN_RX_PIN 5
 

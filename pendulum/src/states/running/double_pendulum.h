@@ -18,7 +18,7 @@ enum class DoublePendulumState : uint8_t {
 	COAST_DOWN_TEST,
 	IDLE,
 	COLLECT_DATA,
-	FREE_SWING,
+	INNER_FREE_SWING,
 
 	EMERGENCY_BRAKE,
 	DONE = 254,
@@ -29,5 +29,5 @@ SequenceStatus double_pendulum(DoublePendulumState &current_state, const ODriveC
                                const EncoderEstimatesResult &fb, const float inner_encoder_rads,
                                const float outer_encoder_rads);
 
-float double_pendulum_policy(const float cart_pos_m, const float cart_vel_mps, const float angle_rads,
-                             const float dt_s);
+float double_pendulum_policy(const float cart_pos_m, const float cart_vel_mps, const float inner_angle_rads,
+                             const float outer_angle_rads, const float dt_s);
