@@ -19,6 +19,7 @@ enum class DoublePendulumState : uint8_t {
 	IDLE,
 	COLLECT_DATA,
 	INNER_FREE_SWING,
+	OUTER_FREE_SWING,
 
 	EMERGENCY_BRAKE,
 	DONE = 254,
