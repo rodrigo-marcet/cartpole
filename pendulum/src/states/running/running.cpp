@@ -115,6 +115,7 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 			LOOP_ERROR("[RUNNING] [ERROR] got motor error: %i", error_msg.Active_Errors);
 		}
 		odrv0.clearErrors();
+		odrv0_user_data.last_heartbeat.Axis_Error = 0;
 		pumpEvents(ESP32Can);
 		delay(10);
 		current_state = RunningState::KILLSWITCH;
@@ -127,8 +128,6 @@ SequenceStatus running_sequence(const CalibrationResult &calibration_result) {
 		current_state = RunningState::ERROR;
 		break;
 	}
-
-	// LOOP_LOG("[PROF] running: %.3f ms", (micros() - t_pump) / 1000.0);
 
 	return SequenceStatus::RUNNING;
 }
