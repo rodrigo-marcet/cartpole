@@ -39,6 +39,7 @@ void init_tflite() {
 		BOOT_ERROR("[TFLITE] AllocateTensors failed!");
 		halt_with_led(Color::PURPLE);
 	}
+	BOOT_LOG("[TFLITE] Arena used: %zu / %d bytes\n", interpreter->arena_used_bytes(), kTensorArenaSize);
 
 	input = interpreter->input(0);
 	output = interpreter->output(0);
@@ -47,9 +48,9 @@ void init_tflite() {
 	BOOT_LOG("[TFLITE] Output dims: [%d, %d]\n", output->dims->data[0], output->dims->data[1]);
 
 	// --- Warm-up run ---
-	float dummy[5] = {0.1f, 0.05f, 0.0f, 0.0f, 0.1f};
-	for (int i = 0; i < 5; i++)
-		input->data.f[i] = dummy[i];
+	int input_size = input->dims->data[input->dims->size - 1];
+	for (int i = 0; i < input_size; i++)
+		input->data.f[i] = 0.05f;
 	interpreter->Invoke();
 
 	BOOT_LOG("Tflite OK");
