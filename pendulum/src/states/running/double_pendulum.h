@@ -10,7 +10,6 @@ enum class DoublePendulumState : uint8_t {
 	ENABLE_TYPE_CONTROL,
 
 	MONITOR_AS5600,
-	NN_BALANCING,
 	NN_SWINGUP,
 
 	BREAKAWAY_TEST,
@@ -20,6 +19,7 @@ enum class DoublePendulumState : uint8_t {
 	COLLECT_DATA,
 	INNER_FREE_SWING,
 	OUTER_FREE_SWING,
+	DOUBLE_FREE_SWING,
 
 	EMERGENCY_BRAKE,
 	DONE = 254,

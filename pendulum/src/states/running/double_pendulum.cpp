@@ -62,10 +62,6 @@ SequenceStatus double_pendulum(DoublePendulumState &current_state, const ODriveC
 		} else {
 			LOOP_LOG("[RUNNING] [MAIN] Position control set succesfully");
 			current_state = DoublePendulumState::MONITOR_AS5600;
-			// current_state = DoublePendulumState::INNER_FREE_SWING;
-			// current_state = DoublePendulumState::OUTER_FREE_SWING;
-			// current_state = DoublePendulumState::COAST_DOWN_TEST;
-			// current_state = DoublePendulumState::BREAKAWAY_TEST;
 		}
 		break;
 	}
@@ -83,35 +79,8 @@ SequenceStatus double_pendulum(DoublePendulumState &current_state, const ODriveC
 			stable_since_ms = millis();
 		else if (millis() - stable_since_ms >= 3000) {
 			LOOP_LOG("PENDULUM IS STABLE AND UPRIGHT");
-			// current_state = DoublePendulumState::NN_BALANCING;
-			// current_state = DoublePendulumState::NN_SWINGUP;
-			current_state = DoublePendulumState::MOTOR_CUVRE_TEST;
-			// current_state = DoublePendulumState::BREAKAWAY_TEST;
+			current_state = DoublePendulumState::NN_SWINGUP;
 		}
-
-		// LOOP_LOG("[AS5600] inner_angle = %.6f,\touter_angle = %.6f\n", inner_rads, outer_rads);
-
-		break;
-	}
-
-	case DoublePendulumState::NN_BALANCING: {
-
-		float pos_m = (fb.pos - rail_limits.midpoint) * PULLEY_CIRCUMFERENCE_M;
-		float cart_v_mps = fb.vel * PULLEY_CIRCUMFERENCE_M;
-
-		if (cos(inner_rads) < cos(PI / 2.0) || abs(pos_m) > 0.4) {
-			current_state = DoublePendulumState::EMERGENCY_BRAKE;
-			odrv0.setTorque(0.0f);
-			break;
-		}
-
-		float force_n = -double_pendulum_policy(-pos_m, -cart_v_mps, inner_rads, outer_rads, dt_s) * 40.0;
-		float torque_nm = force_n * PULLEY_RADIUS_M;
-
-		LOOP_LOG("[NN] force_n = %.6f,\ttorque_nm = %.6f\n", force_n, torque_nm);
-
-		// odrv0.setTorque(torque_nm);
-
 		break;
 	}
 
@@ -126,13 +95,13 @@ SequenceStatus double_pendulum(DoublePendulumState &current_state, const ODriveC
 			break;
 		}
 
-		float force_n = -double_pendulum_policy(-pos_m, -cart_v_mps, inner_rads, outer_rads, dt_s) * 40.0;
+		float force_n = -double_pendulum_policy(-pos_m, -cart_v_mps, inner_rads, outer_rads, dt_s) * 30.0;
 
 		float torque_nm = force_n * PULLEY_RADIUS_M;
 
 		LOOP_LOG("[NN] force_n = %.6f,\ttorque_nm = %.6f\n", force_n, torque_nm);
 
-		// odrv0.setTorque(torque_nm);
+		odrv0.setTorque(torque_nm);
 
 		break;
 	}
@@ -142,12 +111,12 @@ SequenceStatus double_pendulum(DoublePendulumState &current_state, const ODriveC
 		static float elapsed = 0.0f;
 
 		elapsed += dt_s;
-		torque_nm = 0.005f * elapsed; // linear ramp: 0.005 Nm/s, tune this
+		torque_nm = 0.005f * elapsed;
 
 		odrv0.setTorque(torque_nm);
 		float v_mps = fb.vel * PULLEY_CIRCUMFERENCE_M;
 
-		Serial.println(String(dt_s) + "," + String(torque_nm, 6) + "," + String(v_mps, 6));
+		Serial.println(String(dt_s, 6) + "," + String(torque_nm, 6) + "," + String(v_mps, 6));
 
 		if (abs(v_mps) > 0.5f) {
 			odrv0.setTorque(0.0f);
@@ -168,7 +137,7 @@ SequenceStatus double_pendulum(DoublePendulumState &current_state, const ODriveC
 		float pos_m = (fb.pos - rail_limits.midpoint) * PULLEY_CIRCUMFERENCE_M;
 		float v_mps = fb.vel * PULLEY_CIRCUMFERENCE_M;
 
-		Serial.println(String(force_n) + "," + String(step) + "," + String(dt_s) + "," + String(pos_m) + "," +
+		Serial.println(String(force_n) + "," + String(step) + "," + String(dt_s, 6) + "," + String(pos_m) + "," +
 		               String(v_mps) + "," + String(inner_rads) + "," + String(outer_rads));
 
 		step++;
@@ -206,7 +175,7 @@ SequenceStatus double_pendulum(DoublePendulumState &current_state, const ODriveC
 		float v_mps = fb.vel * PULLEY_CIRCUMFERENCE_M;
 		float pos_m = (fb.pos - rail_limits.midpoint) * PULLEY_CIRCUMFERENCE_M;
 
-		Serial.println(String(dt_s) + "," + String(pos_m, 6) + "," + String(v_mps, 6));
+		Serial.println(String(dt_s, 6) + "," + String(pos_m, 6) + "," + String(v_mps, 6));
 
 		if (abs(v_mps) < abs(0.05)) {
 			current_state = DoublePendulumState::DONE;
@@ -234,7 +203,7 @@ SequenceStatus double_pendulum(DoublePendulumState &current_state, const ODriveC
 
 		inner_prev_rads = inner_rads;
 
-		Serial.println(String(dt_s) + "," + String(inner_cos, 6) + "," + String(inner_sin, 6) + "," +
+		Serial.println(String(dt_s, 6) + "," + String(inner_cos, 6) + "," + String(inner_sin, 6) + "," +
 		               String(inner_rads, 6) + "," + String(inner_angular_vel_radps, 6));
 
 		break;
@@ -251,7 +220,6 @@ SequenceStatus double_pendulum(DoublePendulumState &current_state, const ODriveC
 			break;
 		}
 
-		// Inner variables
 		float outer_cos = cos(outer_rads);
 		float outer_sin = sin(outer_rads);
 		float outer_cos_prev = cos(outer_prev_rads);
@@ -261,8 +229,50 @@ SequenceStatus double_pendulum(DoublePendulumState &current_state, const ODriveC
 
 		outer_prev_rads = outer_rads;
 
-		Serial.println(String(dt_s) + "," + String(outer_cos, 6) + "," + String(outer_sin, 6) + "," +
+		Serial.println(String(dt_s, 6) + "," + String(outer_cos, 6) + "," + String(outer_sin, 6) + "," +
 		               String(outer_rads, 6) + "," + String(outer_angular_vel_radps, 6));
+
+		break;
+	}
+
+	case DoublePendulumState::DOUBLE_FREE_SWING: {
+		static bool first_pass = true;
+		static float inner_prev_rads = 0.0f;
+		static float outer_prev_rads = 0.0f;
+
+		if (first_pass) {
+			inner_prev_rads = inner_rads;
+			outer_prev_rads = outer_rads;
+			Serial.println("dt_s,inner_pole_cos,inner_pole_sin,inner_pole_angle_rad,inner_pole_vel_radps,outer_pole_"
+			               "cos,outer_pole_sin,outer_pole_angle_rad,outer_pole_vel_radps");
+			first_pass = false;
+			break;
+		}
+
+		// Inner variables
+		float inner_cos = cos(inner_rads);
+		float inner_sin = sin(inner_rads);
+		float inner_cos_prev = cos(inner_prev_rads);
+		float inner_sin_prev = sin(inner_prev_rads);
+		float inner_angular_vel_radps =
+		    ((inner_sin - inner_sin_prev) * inner_cos - (inner_cos - inner_cos_prev) * inner_sin) / dt_s;
+
+		inner_prev_rads = inner_rads;
+
+		// outer variables
+		float outer_cos = cos(outer_rads);
+		float outer_sin = sin(outer_rads);
+		float outer_cos_prev = cos(outer_prev_rads);
+		float outer_sin_prev = sin(outer_prev_rads);
+		float outer_angular_vel_radps =
+		    ((outer_sin - outer_sin_prev) * outer_cos - (outer_cos - outer_cos_prev) * outer_sin) / dt_s;
+
+		outer_prev_rads = outer_rads;
+
+		Serial.println(String(dt_s, 6) + "," + String(inner_cos, 6) + "," + String(inner_sin, 6) + "," +
+		               String(inner_rads, 6) + "," + String(inner_angular_vel_radps, 6) + "," + String(outer_cos, 6) +
+		               "," + String(outer_sin, 6) + "," + String(outer_rads, 6) + "," +
+		               String(outer_angular_vel_radps, 6));
 
 		break;
 	}
@@ -271,15 +281,14 @@ SequenceStatus double_pendulum(DoublePendulumState &current_state, const ODriveC
 		float v_mps = fb.vel * PULLEY_CIRCUMFERENCE_M;
 		float pos_m = (fb.pos - rail_limits.midpoint) * PULLEY_CIRCUMFERENCE_M;
 
-		int8_t sign = v_mps > 0.0 ? -1 : 1;
+		int8_t sign = pos_m > 0.0 ? -1 : 1;
 
 		static float force_n = 80.0f * sign;
 		static float torque_nm = force_n * PULLEY_RADIUS_M;
 
 		LOOP_LOG("[RUNNING] [EMERGENCY_BRAKE] v_mps = %.6f,\t force_n = %.6f", v_mps, force_n);
 
-		if (abs(v_mps) > 0.0 && abs(pos_m) >= 0.25) {
-			// if (abs(v_mps) > 0.0) {
+		if (abs(v_mps) > 0.0 && abs(pos_m) >= 0.35) {
 			odrv0.setTorque(torque_nm);
 		} else {
 			odrv0.setTorque(0.0);
@@ -324,13 +333,13 @@ float double_pendulum_policy(const float cart_pos_m, const float cart_vel_mps, c
 
 	if (first_run) {
 		inner_prev_rads = _inner_rads - inner_upright_offset;
-		inner_prev_rads = _outer_rads - outer_upright_offset;
+		outer_prev_rads = _outer_rads - outer_upright_offset;
 		first_run = false;
 		return 0.0f;
 	}
 
-	float inner_rads = _inner_rads - inner_upright_offset;
-	float outer_rads = _outer_rads - outer_upright_offset;
+	float inner_rads = -(_inner_rads - inner_upright_offset);
+	float outer_rads = -(_outer_rads - outer_upright_offset);
 
 	// Inner variables
 	float inner_cos = cos(inner_rads);
